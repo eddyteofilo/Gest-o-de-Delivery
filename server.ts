@@ -9,156 +9,22 @@ import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
-const require = createRequire(import.meta.url);
-const Database = require('better-sqlite3');
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let db;
-try {
-  db = new Database('delivery.db');
-  db.pragma('foreign_keys = ON');
-  console.log('Database connected successfully.');
-} catch (e) {
-  console.error('Error initializing database:', e);
-  process.exit(1);
-}
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+console.log('Supabase client initialized.');
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-minimalist-key';
 
-// Initialize Database
-console.log('Initializing database...');
-try {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS restaurants (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    slug TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    address TEXT,
-    phone TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    restaurant_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id)
-  );
-
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    restaurant_id INTEGER NOT NULL,
-    category_id INTEGER,
-    name TEXT NOT NULL,
-    description TEXT,
-    price REAL NOT NULL,
-    image_url TEXT,
-    available INTEGER DEFAULT 1,
-    is_daily_offer INTEGER DEFAULT 0,
-    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id),
-    FOREIGN KEY (category_id) REFERENCES categories (id)
-  );
-
-  CREATE TABLE IF NOT EXISTS product_options (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    price REAL NOT NULL,
-    FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS couriers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    restaurant_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    phone TEXT,
-    rg TEXT,
-    address TEXT,
-    vehicle_type TEXT,
-    vehicle_plate TEXT,
-    vehicle_renavam TEXT,
-    photo_url TEXT,
-    active INTEGER DEFAULT 1,
-    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id)
-  );
-
-  CREATE TABLE IF NOT EXISTS customers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    restaurant_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    whatsapp TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id)
-  );
-`);
-
-  // Migration for existing tables
-  console.log('Running migrations...');
-  try {
-    db.prepare('ALTER TABLE products ADD COLUMN is_daily_offer INTEGER DEFAULT 0').run();
-    console.log('Migration: added is_daily_offer to products');
-  } catch (e: any) {
-    if (!e.message.includes('duplicate column name')) {
-      console.log('Migration info (products):', e.message);
-    }
-  }
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN rg TEXT').run();
-    console.log('Migration: added rg to couriers');
-  } catch (e) {}
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN address TEXT').run();
-  } catch (e) {}
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN vehicle_type TEXT').run();
-  } catch (e) {}
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN vehicle_plate TEXT').run();
-  } catch (e) {}
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN vehicle_renavam TEXT').run();
-  } catch (e) {}
-  try {
-    db.prepare('ALTER TABLE couriers ADD COLUMN photo_url TEXT').run();
-  } catch (e) {}
-
-  db.exec(`
-  CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    restaurant_id INTEGER NOT NULL,
-    customer_name TEXT NOT NULL,
-    customer_phone TEXT NOT NULL,
-    customer_address TEXT NOT NULL,
-    total REAL NOT NULL,
-    status TEXT DEFAULT 'pending', -- pending, preparing, ready, delivering, completed, cancelled
-    courier_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (restaurant_id) REFERENCES restaurants (id),
-    FOREIGN KEY (courier_id) REFERENCES couriers (id)
-  );
-
-  CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    price REAL NOT NULL,
-    options TEXT, -- JSON string of selected options
-    FOREIGN KEY (order_id) REFERENCES orders (id),
-    FOREIGN KEY (product_id) REFERENCES products (id)
-  );
-`);
-} catch (e) {
-  console.error('Error executing database migration:', e);
-  process.exit(1);
-}
+// Database schema is managed via Supabase SQL Editor.
+// Use supabase_schema.sql to initialize your tables.
 
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
@@ -173,7 +39,7 @@ process.on('unhandledRejection', (reason, promise) => {
 async function startServer() {
   console.log('Starting server...');
   const app = express();
-  
+
   // Request logging for debugging
   app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -207,10 +73,15 @@ async function startServer() {
     const { name, email, password, slug } = req.body;
     try {
       const hashedPassword = await bcrypt.hash(password, 10);
-      const stmt = db.prepare('INSERT INTO restaurants (name, email, password, slug) VALUES (?, ?, ?, ?)');
-      const result = stmt.run(name, email, hashedPassword, slug);
-      console.log('Register success:', result.lastInsertRowid);
-      res.json({ id: result.lastInsertRowid });
+      const { data, error } = await supabase
+        .from('restaurants')
+        .insert([{ name, email, password: hashedPassword, slug }])
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      console.log('Register success:', data.id);
+      res.json({ id: data.id });
     } catch (err: any) {
       console.error('Register error:', err.message);
       res.status(400).json({ error: err.message });
@@ -220,132 +91,243 @@ async function startServer() {
   app.post('/api/auth/login', async (req, res) => {
     console.log('Login request:', req.body.email);
     const { email, password } = req.body;
-    const restaurant = db.prepare('SELECT * FROM restaurants WHERE email = ?').get(email) as any;
-    if (!restaurant || !(await bcrypt.compare(password, restaurant.password))) {
-      console.log('Login failed: Invalid credentials');
-      return res.status(401).json({ error: 'Invalid credentials' });
+
+    try {
+      const { data: restaurant, error } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (error || !restaurant || !(await bcrypt.compare(password, restaurant.password))) {
+        console.log('Login failed: Invalid credentials');
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const token = jwt.sign({ id: restaurant.id, slug: restaurant.slug }, JWT_SECRET);
+      console.log('Login success:', restaurant.id);
+      res.json({ token, restaurant: { id: restaurant.id, name: restaurant.name, slug: restaurant.slug } });
+    } catch (err: any) {
+      console.error('Login error:', err.message);
+      res.status(500).json({ error: 'Erro interno no login' });
     }
-    const token = jwt.sign({ id: restaurant.id, slug: restaurant.slug }, JWT_SECRET);
-    console.log('Login success:', restaurant.id);
-    res.json({ token, restaurant: { id: restaurant.id, name: restaurant.name, slug: restaurant.slug } });
   });
 
   // --- Restaurant Routes ---
-  app.get('/api/restaurant/me', authenticate, (req: any, res) => {
-    const restaurant = db.prepare('SELECT id, name, slug, email, address, phone FROM restaurants WHERE id = ?').get(req.user.id);
-    res.json(restaurant);
+  app.get('/api/restaurant/me', authenticate, async (req: any, res) => {
+    try {
+      const { data: restaurant, error } = await supabase
+        .from('restaurants')
+        .select('id, name, slug, email, address, phone, slogan, logo_url, mercadopago_token, pagseguro_token')
+        .eq('id', req.user.id)
+        .single();
+
+      if (error) throw error;
+      res.json(restaurant);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.get('/api/public/restaurant/:slug', (req, res) => {
-    const restaurant = db.prepare('SELECT id, name, slug, address, phone FROM restaurants WHERE slug = ?').get(req.params.slug) as any;
-    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
-    
-    const categories = db.prepare('SELECT * FROM categories WHERE restaurant_id = ?').all(restaurant.id);
-    const products = db.prepare(`
-      SELECT p.*, c.name as category_name 
-      FROM products p 
-      LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.restaurant_id = ? AND p.available = 1
-    `).all(restaurant.id) as any[];
+  app.put('/api/restaurant/settings', authenticate, async (req: any, res) => {
+    const { name, slogan, logo_url, mercadopago_token, pagseguro_token, phone, address } = req.body;
+    try {
+      const { error } = await supabase
+        .from('restaurants')
+        .update({ name, slogan, logo_url, mercadopago_token, pagseguro_token, phone, address })
+        .eq('id', req.user.id);
 
-    // Fetch options for each product
-    for (const p of products) {
-      p.options = db.prepare('SELECT * FROM product_options WHERE product_id = ?').all(p.id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error updating settings:', err.message);
+      res.status(500).json({ error: err.message });
     }
-    
-    res.json({ restaurant, categories, products });
+  });
+
+  app.get('/api/public/restaurant/:slug', async (req, res) => {
+    try {
+      const { data: restaurant, error: resError } = await supabase
+        .from('restaurants')
+        .select('id, name, slug, address, phone, slogan, logo_url')
+        .eq('slug', req.params.slug)
+        .single();
+
+      if (resError || !restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+      const { data: categories } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('restaurant_id', restaurant.id);
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('restaurant_id', restaurant.id)
+        .eq('available', true);
+
+      // Fetch options for each product
+      if (products) {
+        for (const p of products) {
+          const { data: options } = await supabase
+            .from('product_options')
+            .select('*')
+            .eq('product_id', p.id);
+          p.options = options;
+          p.category_name = (p as any).categories?.name;
+        }
+      }
+
+      res.json({ restaurant, categories, products });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- Category Routes ---
-  app.get('/api/restaurant/categories', authenticate, (req: any, res) => {
-    const categories = db.prepare('SELECT * FROM categories WHERE restaurant_id = ?').all(req.user.id);
+  app.get('/api/restaurant/categories', authenticate, async (req: any, res) => {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('restaurant_id', req.user.id);
+
+    if (error) return res.status(500).json({ error: error.message });
     res.json(categories);
   });
 
-  app.post('/api/restaurant/categories', authenticate, (req: any, res) => {
+  app.post('/api/restaurant/categories', authenticate, async (req: any, res) => {
     const { name } = req.body;
-    const stmt = db.prepare('INSERT INTO categories (restaurant_id, name) VALUES (?, ?)');
-    const result = stmt.run(req.user.id, name);
-    res.json({ id: result.lastInsertRowid, name });
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ restaurant_id: req.user.id, name }])
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
   });
 
   // --- Product Routes ---
-  app.get('/api/restaurant/products', authenticate, (req: any, res) => {
-    const products = db.prepare(`
-      SELECT p.*, c.name as category_name 
-      FROM products p 
-      LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.restaurant_id = ?
-    `).all(req.user.id) as any[];
-    
-    for (const p of products) {
-      p.options = db.prepare('SELECT * FROM product_options WHERE product_id = ?').all(p.id);
+  app.get('/api/restaurant/products', authenticate, async (req: any, res) => {
+    try {
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('*, categories(name)')
+        .eq('restaurant_id', req.user.id);
+
+      if (error) throw error;
+
+      if (products) {
+        for (const p of products) {
+          const { data: options } = await supabase
+            .from('product_options')
+            .select('*')
+            .eq('product_id', p.id);
+          p.options = options;
+          p.category_name = (p as any).categories?.name;
+        }
+      }
+      res.json(products);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
-    res.json(products);
   });
 
-  app.post('/api/restaurant/products', authenticate, (req: any, res) => {
+  app.post('/api/restaurant/products', authenticate, async (req: any, res) => {
     const { name, description, price, category_id, image_url, is_daily_offer, options } = req.body;
-    
     try {
-      const transaction = db.transaction(() => {
-        const stmt = db.prepare('INSERT INTO products (restaurant_id, name, description, price, category_id, image_url, is_daily_offer) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        const result = stmt.run(req.user.id, name, description, price, category_id, image_url, is_daily_offer ? 1 : 0);
-        const productId = result.lastInsertRowid;
+      const { data: product, error } = await supabase
+        .from('products')
+        .insert([{
+          restaurant_id: req.user.id,
+          name,
+          description,
+          price,
+          category_id,
+          image_url,
+          is_daily_offer: is_daily_offer ? true : false
+        }])
+        .select()
+        .single();
 
-        if (options && Array.isArray(options)) {
-          const optStmt = db.prepare('INSERT INTO product_options (product_id, name, price) VALUES (?, ?, ?)');
-          for (const opt of options) {
-            optStmt.run(productId, opt.name, opt.price);
-          }
-        }
-        return productId;
-      });
+      if (error) throw error;
 
-      const id = transaction();
-      res.json({ id });
+      if (options && Array.isArray(options)) {
+        const productOptions = options.map(opt => ({
+          product_id: product.id,
+          name: opt.name,
+          price: opt.price
+        }));
+        const { error: optError } = await supabase
+          .from('product_options')
+          .insert(productOptions);
+        if (optError) throw optError;
+      }
+
+      res.json({ id: product.id });
     } catch (err: any) {
       console.error('Error creating product:', err);
       res.status(500).json({ error: 'Erro interno ao criar produto: ' + err.message });
     }
   });
 
-  app.put('/api/restaurant/products/:id', authenticate, (req: any, res) => {
+  app.put('/api/restaurant/products/:id', authenticate, async (req: any, res) => {
     const { name, description, price, category_id, image_url, available, is_daily_offer, options } = req.body;
-    
-    const transaction = db.transaction(() => {
-      const stmt = db.prepare('UPDATE products SET name = ?, description = ?, price = ?, category_id = ?, image_url = ?, available = ?, is_daily_offer = ? WHERE id = ? AND restaurant_id = ?');
-      stmt.run(name, description, price, category_id, image_url, available ? 1 : 0, is_daily_offer ? 1 : 0, req.params.id, req.user.id);
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name,
+          description,
+          price,
+          category_id,
+          image_url,
+          available: available ? true : false,
+          is_daily_offer: is_daily_offer ? true : false
+        })
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id);
 
-      // Replace options
-      db.prepare('DELETE FROM product_options WHERE product_id = ?').run(req.params.id);
+      if (error) throw error;
+
+      // Replace options: delete old, insert new
+      await supabase.from('product_options').delete().eq('product_id', req.params.id);
+
       if (options && Array.isArray(options)) {
-        const optStmt = db.prepare('INSERT INTO product_options (product_id, name, price) VALUES (?, ?, ?)');
-        for (const opt of options) {
-          optStmt.run(req.params.id, opt.name, opt.price);
-        }
+        const productOptions = options.map(opt => ({
+          product_id: req.params.id,
+          name: opt.name,
+          price: opt.price
+        }));
+        await supabase.from('product_options').insert(productOptions);
       }
-    });
 
-    transaction();
-    res.json({ success: true });
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.delete('/api/restaurant/products/:id', authenticate, (req: any, res) => {
-    const stmt = db.prepare('DELETE FROM products WHERE id = ? AND restaurant_id = ?');
-    const result = stmt.run(req.params.id, req.user.id);
-    if (result.changes > 0) {
+  app.delete('/api/restaurant/products/:id', authenticate, async (req: any, res) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id);
+
+      if (error) throw error;
       res.json({ success: true });
-    } else {
-      res.status(404).json({ error: 'Product not found' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 
   // --- Order Routes ---
-  app.post('/api/public/orders', (req, res) => {
+  app.post('/api/public/orders', async (req, res) => {
     const { restaurant_id, customer_name, customer_phone, customer_address, items } = req.body;
-    
-    const transaction = db.transaction(() => {
+
+    try {
       // Calculate total including options
       let total = 0;
       for (const item of items) {
@@ -358,77 +340,149 @@ async function startServer() {
         total += itemTotal * item.quantity;
       }
 
-      const stmt = db.prepare('INSERT INTO orders (restaurant_id, customer_name, customer_phone, customer_address, total) VALUES (?, ?, ?, ?, ?)');
-      const result = stmt.run(restaurant_id, customer_name, customer_phone, customer_address, total);
-      const orderId = result.lastInsertRowid;
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([{ restaurant_id, customer_name, customer_phone, customer_address, total }])
+        .select()
+        .single();
 
-      const itemStmt = db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price, options) VALUES (?, ?, ?, ?, ?)');
-      for (const item of items) {
-        const optionsStr = item.selectedOptions ? JSON.stringify(item.selectedOptions) : null;
-        itemStmt.run(orderId, item.product_id, item.quantity, item.price, optionsStr);
-      }
-      return orderId;
-    });
+      if (orderError) throw orderError;
 
-    const orderId = transaction();
-    res.json({ orderId });
+      const orderItems = items.map((item: any) => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        options: item.selectedOptions || []
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      res.json({ orderId: order.id });
+    } catch (err: any) {
+      console.error('Error creating order:', err);
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.get('/api/restaurant/orders', authenticate, (req: any, res) => {
-    const orders = db.prepare(`
-      SELECT o.*, c.name as courier_name 
-      FROM orders o 
-      LEFT JOIN couriers c ON o.courier_id = c.id 
-      WHERE o.restaurant_id = ? 
-      ORDER BY o.created_at DESC
-    `).all(req.user.id);
-    res.json(orders);
+  app.get('/api/restaurant/orders', authenticate, async (req: any, res) => {
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*, couriers(name)')
+        .eq('restaurant_id', req.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Adapt courier_name for frontend compatibility
+      const adaptedOrders = orders.map(o => ({
+        ...o,
+        courier_name: (o as any).couriers?.name
+      }));
+
+      res.json(adaptedOrders);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.get('/api/restaurant/orders/:id', authenticate, (req: any, res) => {
-    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND restaurant_id = ?').get(req.params.id, req.user.id) as any;
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    const items = db.prepare(`
-      SELECT oi.*, p.name as product_name 
-      FROM order_items oi 
-      JOIN products p ON oi.product_id = p.id 
-      WHERE oi.order_id = ?
-    `).all(order.id);
-    res.json({ ...order, items });
+  app.get('/api/restaurant/orders/:id', authenticate, async (req: any, res) => {
+    try {
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id)
+        .single();
+
+      if (orderError || !order) return res.status(404).json({ error: 'Order not found' });
+
+      const { data: items, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*, products(name)')
+        .eq('order_id', order.id);
+
+      if (itemsError) throw itemsError;
+
+      const adaptedItems = items.map(i => ({
+        ...i,
+        product_name: (i as any).products?.name
+      }));
+
+      res.json({ ...order, items: adaptedItems });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.patch('/api/restaurant/orders/:id/status', authenticate, (req: any, res) => {
+  app.patch('/api/restaurant/orders/:id/status', authenticate, async (req: any, res) => {
     const { status, courier_id } = req.body;
-    const stmt = db.prepare('UPDATE orders SET status = ?, courier_id = COALESCE(?, courier_id) WHERE id = ? AND restaurant_id = ?');
-    stmt.run(status, courier_id, req.params.id, req.user.id);
-    res.json({ success: true });
+    try {
+      const updateData: any = { status };
+      if (courier_id !== undefined) updateData.courier_id = courier_id;
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id);
+
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- Courier Routes ---
-  app.get('/api/restaurant/couriers', authenticate, (req: any, res) => {
-    const couriers = db.prepare('SELECT * FROM couriers WHERE restaurant_id = ?').all(req.user.id);
-    res.json(couriers);
-  });
-
-  app.post('/api/restaurant/couriers', authenticate, (req: any, res) => {
-    const { name, phone, rg, address, vehicle_type, vehicle_plate, vehicle_renavam, photo_url } = req.body;
-    const stmt = db.prepare('INSERT INTO couriers (restaurant_id, name, phone, rg, address, vehicle_type, vehicle_plate, vehicle_renavam, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-    const result = stmt.run(req.user.id, name, phone, rg, address, vehicle_type, vehicle_plate, vehicle_renavam, photo_url);
-    res.json({ id: result.lastInsertRowid });
-  });
-
-  app.delete('/api/restaurant/couriers/:id', authenticate, (req: any, res) => {
+  app.get('/api/restaurant/couriers', authenticate, async (req: any, res) => {
     try {
-      // First, set courier_id to NULL in orders to avoid foreign key constraint issues
-      db.prepare('UPDATE orders SET courier_id = NULL WHERE courier_id = ? AND restaurant_id = ?').run(req.params.id, req.user.id);
-      
-      const stmt = db.prepare('DELETE FROM couriers WHERE id = ? AND restaurant_id = ?');
-      const result = stmt.run(req.params.id, req.user.id);
-      if (result.changes > 0) {
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: 'Courier not found' });
-      }
+      const { data: couriers, error } = await supabase
+        .from('couriers')
+        .select('*')
+        .eq('restaurant_id', req.user.id);
+      if (error) throw error;
+      res.json(couriers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/restaurant/couriers', authenticate, async (req: any, res) => {
+    const { name, phone, rg, address, vehicle_type, vehicle_plate, vehicle_renavam, photo_url } = req.body;
+    try {
+      const { data, error } = await supabase
+        .from('couriers')
+        .insert([{
+          restaurant_id: req.user.id,
+          name, phone, rg, address,
+          vehicle_type, vehicle_plate, vehicle_renavam, photo_url
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json({ id: data.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/restaurant/couriers/:id', authenticate, async (req: any, res) => {
+    try {
+      // Supabase handles foreign keys if ref is SET NULL or RESTRICT
+      const { error } = await supabase
+        .from('couriers')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id);
+
+      if (error) throw error;
+      res.json({ success: true });
     } catch (err: any) {
       console.error('Error deleting courier:', err);
       res.status(500).json({ error: 'Erro ao excluir entregador: ' + err.message });
@@ -436,22 +490,39 @@ async function startServer() {
   });
 
   // --- Customer Routes ---
-  app.get('/api/restaurant/customers', authenticate, (req: any, res) => {
-    const customers = db.prepare('SELECT * FROM customers WHERE restaurant_id = ? ORDER BY name ASC').all(req.user.id);
-    res.json(customers);
+  app.get('/api/restaurant/customers', authenticate, async (req: any, res) => {
+    try {
+      const { data: customers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('restaurant_id', req.user.id)
+        .order('name', { ascending: true });
+      if (error) throw error;
+      res.json(customers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.post('/api/restaurant/customers', authenticate, (req: any, res) => {
+  app.post('/api/restaurant/customers', authenticate, async (req: any, res) => {
     const { name, address, phone, whatsapp } = req.body;
-    const stmt = db.prepare('INSERT INTO customers (restaurant_id, name, address, phone, whatsapp) VALUES (?, ?, ?, ?, ?)');
-    const result = stmt.run(req.user.id, name, address, phone, whatsapp);
-    res.json({ id: result.lastInsertRowid, name, address, phone, whatsapp });
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{ restaurant_id: req.user.id, name, address, phone, whatsapp }])
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
-  app.post('/api/restaurant/orders/counter', authenticate, (req: any, res) => {
-    const { customer_id, customer_name, customer_phone, customer_address, items } = req.body;
-    
-    const transaction = db.transaction(() => {
+  app.post('/api/restaurant/orders/counter', authenticate, async (req: any, res) => {
+    const { customer_name, customer_phone, customer_address, items } = req.body;
+
+    try {
       let total = 0;
       for (const item of items) {
         let itemTotal = item.price;
@@ -463,45 +534,82 @@ async function startServer() {
         total += itemTotal * item.quantity;
       }
 
-      const stmt = db.prepare('INSERT INTO orders (restaurant_id, customer_name, customer_phone, customer_address, total, status) VALUES (?, ?, ?, ?, ?, ?)');
-      const result = stmt.run(req.user.id, customer_name, customer_phone, customer_address, total, 'preparing'); // Default to preparing for counter orders
-      const orderId = result.lastInsertRowid;
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          restaurant_id: req.user.id,
+          customer_name,
+          customer_phone,
+          customer_address,
+          total,
+          status: 'preparing'
+        }])
+        .select()
+        .single();
 
-      const itemStmt = db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price, options) VALUES (?, ?, ?, ?, ?)');
-      for (const item of items) {
-        const optionsStr = item.selectedOptions ? JSON.stringify(item.selectedOptions) : null;
-        itemStmt.run(orderId, item.product_id, item.quantity, item.price, optionsStr);
-      }
-      return orderId;
-    });
+      if (orderError) throw orderError;
 
-    const orderId = transaction();
-    res.json({ orderId });
+      const orderItems = items.map((item: any) => ({
+        order_id: order.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        options: item.selectedOptions || []
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      res.json({ orderId: order.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- Public Tracking ---
-  app.get('/api/public/orders/:id', (req, res) => {
-    const order = db.prepare(`
-      SELECT o.id, o.status, o.total, o.created_at, r.name as restaurant_name, r.phone as restaurant_phone
-      FROM orders o
-      JOIN restaurants r ON o.restaurant_id = r.id
-      WHERE o.id = ?
-    `).get(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    res.json(order);
+  app.get('/api/public/orders/:id', async (req, res) => {
+    try {
+      const { data: order, error } = await supabase
+        .from('orders')
+        .select('id, status, total, created_at, restaurants(name, phone)')
+        .eq('id', req.params.id)
+        .single();
+
+      if (error || !order) return res.status(404).json({ error: 'Order not found' });
+
+      const adaptedOrder = {
+        ...order,
+        restaurant_name: (order as any).restaurants?.name,
+        restaurant_phone: (order as any).restaurants?.phone
+      };
+
+      res.json(adaptedOrder);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // --- Reports ---
-  app.get('/api/restaurant/reports/summary', authenticate, (req: any, res) => {
-    const summary = db.prepare(`
-      SELECT 
-        COUNT(*) as total_orders,
-        SUM(total) as total_revenue,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders
-      FROM orders 
-      WHERE restaurant_id = ?
-    `).get(req.user.id);
-    res.json(summary);
+  app.get('/api/restaurant/reports/summary', authenticate, async (req: any, res) => {
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('total, status')
+        .eq('restaurant_id', req.user.id);
+
+      if (error) throw error;
+
+      const total_orders = orders.length;
+      const total_revenue = orders.reduce((sum, o) => sum + Number(o.total), 0);
+      const completed_orders = orders.filter(o => o.status === 'completed').length;
+
+      res.json({ total_orders, total_revenue, completed_orders });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // Vite middleware for development
