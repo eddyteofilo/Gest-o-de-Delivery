@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4A90E2;
+  --color-secondary: #F5F5F5;
+  --color-text-main: #333333;
+  --color-text-muted: #666666;
+  --color-success: #81C784;
+  --color-error: #E57373;
+  
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-text-main font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-primary text-white hover:bg-blue-600;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-gray-100 text-text-main hover:bg-gray-200;
+  }
+  .card {
+    @apply bg-white border border-gray-100 rounded-xl p-4 shadow-sm;
+  }
+  .input {
+    @apply w-full px-4 py-2 bg-secondary border border-transparent rounded-lg focus:outline-none focus:border-primary/30 transition-all;
+  }
+}
+
+/* Custom scrollbar for minimalist feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #E0E0E0;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #D0D0D0;
+}
