@@ -19,11 +19,15 @@ import {
   Search,
   Users,
   Settings,
-  CreditCard
+  CreditCard,
+  ArrowLeft,
+  Heart,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, formatCurrency, formatDate, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from './utils';
 import { Restaurant, Product, Order, Courier, Category, ProductOption, Customer } from './types';
+import Papa from 'papaparse';
 
 // --- Components ---
 
@@ -595,6 +599,111 @@ const OrdersView = ({ orders, onUpdateStatus, onViewOrder }: { orders: Order[], 
     </div>
   </div>
 );
+
+const CustomersView = ({ customers, onImport, onDelete, token }: { customers: Customer[], onImport: (data: any[]) => void, onDelete: (id: number) => void, token: string | null }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.phone.includes(searchTerm)
+  );
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const validatedData = results.data.map((row: any) => ({
+          name: row.name || row.Nome || '',
+          phone: row.phone || row.Telefone || '',
+          address: row.address || row.Endereco || row.Endereço || '',
+          whatsapp: row.whatsapp || row.WhatsApp || ''
+        })).filter((c: any) => c.name && c.phone);
+
+        if (validatedData.length > 0) {
+          onImport(validatedData);
+        } else {
+          alert('Nenhum dado válido encontrado na planilha. Verifique se as colunas são: name, phone, address, whatsapp.');
+        }
+        setImporting(false);
+      },
+      error: (error) => {
+        console.error('Erro no parsing do CSV:', error);
+        alert('Erro ao ler o arquivo.');
+        setImporting(false);
+      }
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Gestão de Clientes</h2>
+        <div className="flex gap-2">
+          <label className="btn-secondary flex items-center gap-2 cursor-pointer">
+            <Plus size={18} /> {importing ? 'Importando...' : 'Importar Planilha (CSV)'}
+            <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={importing} />
+          </label>
+        </div>
+      </div>
+
+      <div className="card space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            type="text"
+            placeholder="Buscar por nome ou telefone..."
+            className="input pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-xs font-bold uppercase text-text-muted border-b border-gray-100">
+                <th className="px-4 py-3">Nome</th>
+                <th className="px-4 py-3">Telefone</th>
+                <th className="px-4 py-3">WhatsApp</th>
+                <th className="px-4 py-3">Endereço</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(c => (
+                <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 font-medium">{c.name}</td>
+                  <td className="px-4 py-3 text-sm">{c.phone}</td>
+                  <td className="px-4 py-3 text-sm">{c.whatsapp || '-'}</td>
+                  <td className="px-4 py-3 text-sm max-w-xs truncate">{c.address}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => onDelete(c.id)}
+                      className="text-red-400 hover:text-red-600 p-1"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-text-muted">Nenhum cliente cadastrado.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProductionView = ({ orders, onUpdateStatus, onViewOrder, couriers, token }: { orders: Order[], onUpdateStatus: (id: number, status: string) => void, onViewOrder: (order: Order) => void, couriers: Courier[], token: string | null }) => {
   const stages = [
@@ -1205,7 +1314,7 @@ export default function App() {
   const [view, setView] = useState<'landing' | 'login' | 'register' | 'admin' | 'public' | 'tracking'>('landing');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'orders' | 'products' | 'couriers' | 'production' | 'counter' | 'settings'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'orders' | 'products' | 'couriers' | 'customers' | 'production' | 'counter' | 'settings'>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1223,6 +1332,8 @@ export default function App() {
   const [cart, setCart] = useState<{ product: Product, quantity: number, selectedOptions?: ProductOption[] }[]>([]);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [showCartDetails, setShowCartDetails] = useState(false);
 
   const fetchAdminData = async () => {
     if (!token) return;
@@ -1579,6 +1690,45 @@ export default function App() {
     }
   };
 
+  const handleBulkImportCustomers = async (customersData: any[]) => {
+    try {
+      const res = await fetch('/api/restaurant/customers/bulk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ customers: customersData })
+      });
+      if (res.ok) {
+        setSuccess(`${customersData.length} clientes importados com sucesso!`);
+        fetchAdminData();
+      } else {
+        setError('Erro ao importar clientes');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+    try {
+      const res = await fetch(`/api/restaurant/customers/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setCustomers(prev => prev.filter(c => c.id !== id));
+        setSuccess('Cliente excluído com sucesso!');
+      } else {
+        setError('Erro ao excluir cliente');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
   useEffect(() => {
     if (token && view === 'admin') {
       const fetchData = async () => {
@@ -1706,76 +1856,147 @@ export default function App() {
 
   if (view === 'landing') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-8">
+      <div className="min-h-screen bg-secondary flex items-center justify-center p-6 font-sans selection:bg-primary/10">
         <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
-        <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center text-primary">
-          <Truck size={40} />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-4xl font-black tracking-tight">Minimal Delivery</h1>
-          <p className="text-text-muted max-w-xs mx-auto">A solução mais simples e rápida para o seu delivery.</p>
-        </div>
-        <div className="flex flex-col w-full max-w-xs gap-3">
-          <button onClick={() => setView('register')} className="btn-primary py-4">Começar Agora</button>
-          <button onClick={() => setView('login')} className="btn-secondary py-4">Entrar no Painel</button>
-        </div>
-        <div className="pt-8 border-t border-gray-100 w-full max-w-xs">
-          <p className="text-xs text-text-muted mb-4">Ou peça em um restaurante</p>
-          <div className="flex flex-col gap-3">
-            <input
-              placeholder="slug-do-restaurante"
-              className="input text-sm"
-              onKeyDown={(e) => e.key === 'Enter' && handleViewPublic((e.target as HTMLInputElement).value)}
-            />
-            <button onClick={() => setView('tracking')} className="text-sm font-bold text-primary flex items-center justify-center gap-2">
-              <Clock size={16} /> Acompanhar meu pedido
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-lg space-y-16 py-12"
+        >
+          {/* Header Section */}
+          <div className="space-y-8 text-center">
+            <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-primary/20">
+              <Truck size={40} className="text-white" />
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-5xl font-black tracking-tight text-text-main">
+                Delivery<span className="text-accent italic">Pro</span>
+              </h1>
+              <p className="text-text-muted text-lg font-medium max-w-sm mx-auto leading-relaxed">
+                Gerencie seu delivery com elegância, simplicidade e inteligência.
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            <button
+              onClick={() => setView('register')}
+              className="btn-primary w-full shadow-2xl shadow-primary/5 active:scale-[0.98] transition-all"
+            >
+              Começar Agora
+            </button>
+            <button
+              onClick={() => setView('login')}
+              className="btn-secondary w-full active:scale-[0.98] transition-all"
+            >
+              Painel Administrativo
             </button>
           </div>
-        </div>
+
+          {/* Public Access Section */}
+          <div className="pt-12 border-t border-border space-y-8">
+            <div className="space-y-2 text-center">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted/60">Acesso Rápido</span>
+            </div>
+            <div className="relative group max-w-xs mx-auto">
+              <input
+                placeholder="slug-do-restaurante"
+                className="input-minimal text-center text-lg font-bold placeholder:font-medium"
+                onKeyDown={(e) => e.key === 'Enter' && handleViewPublic((e.target as HTMLInputElement).value)}
+              />
+              <div className="flex justify-center mt-6">
+                <button onClick={() => setView('tracking')} className="text-xs font-bold text-text-muted hover:text-primary transition-all flex items-center gap-2">
+                  <Clock size={14} /> Acompanhar Pedido
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
     );
   }
 
   if (view === 'login' || view === 'register') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-secondary">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 font-sans">
         <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card w-full max-w-md p-8 space-y-6">
-          <button onClick={() => setView('landing')} className="text-text-muted hover:text-text-main flex items-center gap-1 text-sm">
-            Voltar
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm space-y-12"
+        >
+          <button
+            onClick={() => setView('landing')}
+            className="text-text-muted hover:text-primary flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all group"
+          >
+            <X size={14} className="group-hover:rotate-90 transition-transform" /> Voltar
           </button>
-          <h2 className="text-2xl font-bold">{view === 'login' ? 'Entrar' : 'Criar Conta'}</h2>
-          <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-4">
-            {view === 'register' && (
-              <>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase text-text-muted">Nome do Restaurante</label>
-                  <input name="name" required className="input" placeholder="Ex: Pizzaria do Zé" />
+
+          <div className="space-y-4">
+            <h2 className="text-5xl font-black text-text-main tracking-tight">
+              {view === 'login' ? 'Olá.' : 'Olá.'}
+            </h2>
+            <p className="text-text-muted text-lg font-medium">
+              {view === 'login' ? 'Entre para gerenciar seu negócio.' : 'Comece sua jornada digital hoje.'}
+            </p>
+          </div>
+
+          <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-8">
+            <div className="space-y-6">
+              {view === 'register' && (
+                <input
+                  name="name"
+                  required
+                  className="input-minimal"
+                  placeholder="Nome do seu restaurante"
+                />
+              )}
+              {view === 'register' && (
+                <div className="relative group">
+                  <input
+                    name="slug"
+                    required
+                    className="input-minimal pr-20"
+                    placeholder="slug-da-loja"
+                  />
+                  <span className="absolute right-0 bottom-4 text-[10px] font-black text-text-muted/30 uppercase tracking-tighter">.deliverypro.com</span>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase text-text-muted">Slug (URL única)</label>
-                  <input name="slug" required className="input" placeholder="ex: pizzaria-do-ze" />
-                </div>
-              </>
-            )}
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-text-muted">E-mail</label>
-              <input name="email" type="email" required className="input" placeholder="seu@email.com" />
+              )}
+              <input
+                name="email"
+                type="email"
+                required
+                className="input-minimal"
+                placeholder="E-mail profissional"
+              />
+              <input
+                name="password"
+                type="password"
+                required
+                className="input-minimal"
+                placeholder="Sua senha secreta"
+              />
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold uppercase text-text-muted">Senha</label>
-              <input name="password" type="password" required className="input" placeholder="••••••••" />
-            </div>
-            <button type="submit" className="btn-primary w-full py-3 mt-4">
-              {view === 'login' ? 'Entrar' : 'Criar Conta'}
+
+            <button type="submit" className="btn-primary w-full shadow-2xl shadow-primary/5 py-5 text-lg">
+              {view === 'login' ? 'Entrar' : 'Cadastrar'}
             </button>
           </form>
-          <p className="text-center text-sm text-text-muted">
-            {view === 'login' ? 'Não tem conta?' : 'Já tem conta?'}
-            <button onClick={() => setView(view === 'login' ? 'register' : 'login')} className="text-primary font-bold ml-1">
-              {view === 'login' ? 'Cadastre-se' : 'Entrar'}
+
+          <div className="pt-8 border-t border-border flex flex-col items-center gap-4">
+            <p className="text-sm font-medium text-text-muted">
+              {view === 'login' ? 'Ainda não é DeliveryPro?' : 'Já possui acesso?'}
+            </p>
+            <button
+              onClick={() => setView(view === 'login' ? 'register' : 'login')}
+              className="text-primary font-black text-xs uppercase tracking-widest hover:tracking-[0.2em] transition-all"
+            >
+              {view === 'login' ? 'Criar minha conta' : 'Fazer Login'}
             </button>
-          </p>
+          </div>
         </motion.div>
       </div>
     );
@@ -1820,6 +2041,7 @@ export default function App() {
             <SidebarItem icon={Clock} label="Produção" active={adminTab === 'production'} onClick={() => setAdminTab('production')} />
             <SidebarItem icon={Utensils} label="Cardápio" active={adminTab === 'products'} onClick={() => setAdminTab('products')} />
             <SidebarItem icon={Truck} label="Entregadores" active={adminTab === 'couriers'} onClick={() => setAdminTab('couriers')} />
+            <SidebarItem icon={Users} label="Clientes" active={adminTab === 'customers'} onClick={() => setAdminTab('customers')} />
             <SidebarItem icon={Settings} label="Configurações" active={adminTab === 'settings'} onClick={() => setAdminTab('settings')} />
             <div className="pt-4 border-t border-gray-100 mt-4">
               <SidebarItem
@@ -1857,6 +2079,14 @@ export default function App() {
               }} onDelete={handleDeleteProduct} />}
               {adminTab === 'orders' && <OrdersView orders={orders} onUpdateStatus={updateOrderStatus} onViewOrder={handleViewOrder} />}
               {adminTab === 'counter' && <CounterOrderView products={products} customers={customers} onOrderCreated={fetchAdminData} token={token} />}
+              {adminTab === 'customers' && (
+                <CustomersView
+                  customers={customers}
+                  onImport={handleBulkImportCustomers}
+                  onDelete={handleDeleteCustomer}
+                  token={token}
+                />
+              )}
               {adminTab === 'production' && <ProductionView orders={orders} onUpdateStatus={updateOrderStatus} onViewOrder={handleViewOrder} couriers={couriers} token={token} />}
               {adminTab === 'settings' && <SettingsView restaurant={restaurant} onUpdate={fetchAdminData} token={token} setError={setError} setSuccess={setSuccess} />}
               {adminTab === 'couriers' && (
@@ -1929,274 +2159,230 @@ export default function App() {
     return <TrackingView onBack={() => setView('public')} initialOrder={trackingOrder} />;
   }
 
+
   if (view === 'public') {
-    const total = cart.reduce((acc, c) => {
+    if (!publicData) return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+
+    const categoriesList = Array.from(new Set(publicData.products.map((p: Product) => p.category_name || 'Geral')));
+    const totalAmount = cart.reduce((acc, c) => {
       const optionsTotal = c.selectedOptions?.reduce((sum, opt) => sum + opt.price, 0) || 0;
       return acc + ((c.product.price + optionsTotal) * c.quantity);
     }, 0);
 
-    // Group products by category
-    const groupedProducts: Record<string, Product[]> = {};
+    const productsByCategory: Record<string, Product[]> = {};
     publicData.products.forEach((p: Product) => {
       const cat = p.category_name || 'Geral';
-      if (!groupedProducts[cat]) groupedProducts[cat] = [];
-      groupedProducts[cat].push(p);
+      if (!productsByCategory[cat]) productsByCategory[cat] = [];
+      productsByCategory[cat].push(p);
     });
 
     return (
-      <div className="min-h-screen bg-[#FDFCFB] pb-32">
+      <div className="min-h-screen bg-white pb-32">
         <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
-        <DailyOfferModal
-          isOpen={showDailyOffer}
-          product={dailyOfferProduct}
-          onClose={() => setShowDailyOffer(false)}
-          onAddToCart={handleAddToCart}
-        />
-        <ProductDetailModal
-          isOpen={!!selectedProduct}
-          product={selectedProduct}
-          onClose={() => setSelectedProduct(null)}
-          onAddToCart={handleAddToCart}
-        />
 
-        {/* Elegant Hero Section */}
-        <div className="relative h-[45vh] md:h-[55vh] overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-black/20 z-10" />
-          <motion.img
-            initial={{ scale: 1.2 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 10, repeat: Infinity, repeatType: "reverse" }}
-            src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=2070"
-            className="w-full h-full object-cover"
-            alt="Hero"
-          />
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between">
+          <button onClick={() => setView('landing')} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-text-main hover:bg-border transition-all">
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-lg font-black tracking-tight text-text-main">Cardápio Digital</h1>
+          <button className="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary group transition-all">
+            <Search size={20} className="group-hover:scale-110" />
+          </button>
+        </header>
 
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-white p-6 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="space-y-6"
-            >
-              <div className="relative inline-block">
-                <div className="w-24 h-24 bg-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mx-auto border border-white/20 shadow-2xl relative z-10 overflow-hidden">
-                  {publicData.restaurant.logo_url ? (
-                    <img src={publicData.restaurant.logo_url} className="w-full h-full object-cover" />
-                  ) : (
-                    <Utensils size={48} className="text-primary" />
-                  )}
-                </div>
-                {/* Floating GIF Accent 1 */}
-                <motion.div
-                  animate={{ y: [0, -10, 0], rotate: [0, 5, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                  className="absolute -top-4 -right-4 w-12 h-12 z-20"
-                >
-                  <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJ6eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxxfG9I1I1G/giphy.gif" className="w-full h-full object-contain" />
-                </motion.div>
-              </div>
-
-              <div className="space-y-2">
-                <h1 className="text-5xl md:text-7xl font-black tracking-tighter drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]">
-                  {publicData.restaurant.name}
-                </h1>
-                <div className="flex items-center justify-center gap-2 text-primary font-bold bg-white/10 backdrop-blur-md px-4 py-1 rounded-full w-fit mx-auto border border-white/10">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                  Aberto Agora
-                </div>
-              </div>
-
-              <p className="text-lg md:text-xl opacity-100 font-bold max-w-md mx-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-relaxed text-white">
-                {publicData.restaurant.slogan}
-              </p>
-              <p className="text-sm md:text-base opacity-90 font-medium max-w-md mx-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] leading-relaxed text-white">
-                {publicData.restaurant.address}
-              </p>
-
-              <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                <button onClick={() => setView('tracking')} className="bg-primary text-white px-8 py-4 rounded-2xl font-black text-sm flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-primary/40">
-                  <Clock size={20} /> Acompanhar Pedido
-                </button>
-                <button onClick={() => setView('landing')} className="bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-black text-sm border border-white/20 hover:bg-white/20 transition-all">
-                  Voltar
-                </button>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Animated GIF Accents - Floating Elements */}
-          <motion.div
-            animate={{ x: [0, 20, 0], y: [0, -20, 0] }}
-            transition={{ duration: 5, repeat: Infinity }}
-            className="absolute top-20 left-10 z-30 hidden lg:block opacity-40"
-          >
-            <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJ6eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxxfG9I1I1G/giphy.gif" className="w-24 h-24 object-contain" />
-          </motion.div>
-
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#FDFCFB] to-transparent z-20" />
-        </div>
-
-        <main className="max-w-3xl mx-auto px-4 -mt-10 relative z-30">
-          <div className="bg-white rounded-[2rem] shadow-xl p-6 md:p-10 space-y-12">
-            {Object.entries(groupedProducts).map(([category, products]) => (
-              <div key={category} className="space-y-6">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-black text-gray-900">{category}</h2>
-                  <div className="h-px flex-1 bg-gray-100" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {products.map((p: Product) => (
-                    <motion.div
-                      key={p.id}
-                      whileHover={{ y: -4 }}
-                      onClick={() => setSelectedProduct(p)}
-                      className="group bg-white border border-gray-100 rounded-3xl p-4 flex gap-4 cursor-pointer hover:shadow-xl hover:border-primary/20 transition-all"
-                    >
-                      <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-50 flex-shrink-0 relative">
-                        {p.image_url ? (
-                          <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <Utensils size={32} />
-                          </div>
-                        )}
-                        {p.is_daily_offer && (
-                          <div className="absolute top-1 left-1 bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">
-                            Oferta
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                          <h3 className="font-bold text-gray-900 group-hover:text-primary transition-colors">{p.name}</h3>
-                          <p className="text-xs text-text-muted line-clamp-2 mt-1 leading-relaxed">{p.description}</p>
-                        </div>
-                        <p className="font-black text-primary text-lg mt-2">{formatCurrency(p.price)}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
+        <div className="sticky top-[73px] z-30 bg-white/80 backdrop-blur-md border-b border-border overflow-x-auto no-scrollbar py-2">
+          <div className="flex px-6 gap-8 min-w-max">
+            {categoriesList.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  const el = document.getElementById(`cat-${cat}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className={cn(
+                  "relative py-3 text-sm font-bold transition-all",
+                  activeCategory === cat ? "text-primary" : "text-text-muted hover:text-text-main"
+                )}
+              >
+                {cat}
+                {activeCategory === cat && (
+                  <motion.div layoutId="activeCat" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+                )}
+              </button>
             ))}
           </div>
+        </div>
 
-          {cart.length > 0 && (
-            <motion.div
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 z-50"
-            >
-              <div className="bg-black text-white rounded-[2rem] shadow-2xl overflow-hidden">
-                <div
-                  className="p-6 cursor-pointer flex justify-between items-center"
-                  onClick={() => document.getElementById('cart-details')?.classList.toggle('hidden')}
+        <main className="max-w-5xl mx-auto px-6 py-8 space-y-12">
+          {/* Daily Offers / Highlights */}
+          <div className="space-y-6">
+            <h2 className="text-xl font-black text-text-main tracking-tight">Destaques da Semana</h2>
+            <div className="flex gap-6 overflow-x-auto no-scrollbar -mx-6 px-6 pb-4">
+              {publicData.products.filter((p: Product) => p.is_daily_offer).map((p: Product) => (
+                <motion.div
+                  key={p.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedProduct(p)}
+                  className="w-64 flex-shrink-0 bg-white border border-border rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all cursor-pointer group"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-black">
-                      {cart.reduce((acc, c) => acc + c.quantity, 0)}
-                    </div>
+                  <div className="h-48 overflow-hidden bg-secondary relative">
+                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <div className="absolute top-4 left-4 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase">Top Choice</div>
+                  </div>
+                  <div className="p-6 space-y-4">
                     <div>
-                      <p className="font-bold text-sm">Sua Sacola</p>
-                      <p className="text-xs opacity-60">Toque para ver detalhes</p>
+                      <h3 className="font-black text-text-main text-lg truncate">{p.name}</h3>
+                      <p className="text-primary font-black text-lg mt-1">{formatCurrency(p.price)}</p>
+                    </div>
+                    <div className="w-full btn-secondary py-3 rounded-xl flex items-center justify-center gap-2 text-sm">
+                      <Plus size={16} /> Adicionar
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-black text-primary">{formatCurrency(total)}</p>
-                  </div>
-                </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
 
-                <div id="cart-details" className="hidden border-t border-white/10 p-6 space-y-6 max-h-[60vh] overflow-y-auto bg-[#111]">
-                  <div className="space-y-4">
-                    {cart.map((c, idx) => (
-                      <div key={idx} className="flex justify-between items-start gap-4 pb-4 border-b border-white/5">
-                        <div className="flex-1">
-                          <p className="font-bold text-sm">
-                            <span className="text-primary mr-2">{c.quantity}x</span>
-                            {c.product.name}
-                          </p>
-                          {c.selectedOptions && c.selectedOptions.length > 0 && (
-                            <p className="text-[10px] text-gray-400 mt-1">
-                              {c.selectedOptions.map(o => o.name).join(', ')}
-                            </p>
-                          )}
-                        </div>
-                        <span className="font-bold text-sm">
-                          {formatCurrency((c.product.price + (c.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0)) * c.quantity)}
-                        </span>
+          {/* Catalog Sections */}
+          {Object.entries(productsByCategory).map(([category, products]) => (
+            <div key={category} id={`cat-${category}`} className="space-y-8 scroll-mt-32">
+              <h2 className="text-xl font-black text-text-main tracking-tight">{category}</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {products.map((p: Product) => (
+                  <motion.div
+                    key={p.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedProduct(p)}
+                    className="flex bg-white border border-border rounded-3xl p-4 gap-4 cursor-pointer hover:shadow-xl hover:border-transparent transition-all group"
+                  >
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden bg-secondary flex-shrink-0">
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between py-1">
+                      <div>
+                        <h3 className="font-black text-text-main group-hover:text-primary transition-colors">{p.name}</h3>
+                        <p className="text-[10px] text-text-muted mt-1 leading-relaxed line-clamp-2 font-medium">{p.description}</p>
                       </div>
-                    ))}
-                  </div>
-
-                  <form onSubmit={submitOrder} className="space-y-4">
-                    <div className="space-y-3">
-                      <input name="name" required placeholder="Seu Nome" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-primary/50 outline-none" />
-                      <input name="phone" required placeholder="Seu Telefone" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-primary/50 outline-none" />
-                      <input name="address" required placeholder="Endereço de Entrega" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm focus:ring-2 ring-primary/50 outline-none" />
+                      <div className="flex items-center justify-between mt-auto pt-2">
+                        <p className="font-black text-primary text-lg">{formatCurrency(p.price)}</p>
+                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-all">
+                          <Plus size={18} strokeWidth={3} />
+                        </div>
+                      </div>
                     </div>
-                    <button type="submit" className="btn-primary w-full py-4 font-black text-lg rounded-2xl shadow-lg shadow-primary/20">
-                      Finalizar Pedido
-                    </button>
-                  </form>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </main>
+
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          {cart.length > 0 && (
+            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="px-6 mb-4">
+              <div className="bg-white rounded-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border border-border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4 cursor-pointer group flex-1" onClick={() => setShowCartDetails(true)}>
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-primary-soft rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                      <ShoppingBag size={24} />
+                    </div>
+                    <span className="absolute -top-2 -right-2 bg-primary text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">
+                      {cart.reduce((acc, c) => acc + c.quantity, 0)}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-text-muted/60">Total Pedido</p>
+                    <p className="text-xl font-black text-text-main tracking-tighter">{formatCurrency(totalAmount)}</p>
+                  </div>
                 </div>
+                <button onClick={() => setShowCartDetails(true)} className="btn-primary py-4 px-8 shadow-xl shadow-primary/20">Finalizar</button>
               </div>
             </motion.div>
           )}
-        </main>
+
+          <nav className="bg-white border-t border-border flex items-center justify-around h-[80px] px-6">
+            <button className="flex flex-col items-center gap-1 text-primary"><Utensils size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Menu</span></button>
+            <button className="flex flex-col items-center gap-1 text-text-muted"><ShoppingBag size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Pedidos</span></button>
+            <button className="flex flex-col items-center gap-1 text-text-muted"><Heart size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Favoritos</span></button>
+            <button className="flex flex-col items-center gap-1 text-text-muted"><User size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Perfil</span></button>
+          </nav>
+        </div>
+
+        <AnimatePresence>
+          {showCartDetails && (
+            <motion.div
+              key="cart-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-end justify-center"
+              onClick={(e) => e.target === e.currentTarget && setShowCartDetails(false)}
+            >
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="bg-white w-full max-w-xl rounded-t-[3rem] p-8 space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-black text-text-main">Sua Sacola</h3>
+                  <button onClick={() => setShowCartDetails(false)} className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-text-muted"><X size={20} /></button>
+                </div>
+                <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 no-scrollbar">
+                  {cart.map((c, idx) => (
+                    <div key={idx} className="flex justify-between items-start gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
+                      <div className="flex-1">
+                        <p className="font-black text-sm text-text-main"><span className="text-primary mr-2">{c.quantity}x</span>{c.product.name}</p>
+                        {c.selectedOptions && c.selectedOptions.length > 0 && (
+                          <p className="text-xs text-text-muted mt-1 font-medium">{c.selectedOptions.map(o => o.name).join(', ')}</p>
+                        )}
+                      </div>
+                      <span className="font-black text-sm text-text-main">{formatCurrency((c.product.price + (c.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0)) * c.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={submitOrder} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <input name="name" required placeholder="Nome Completo" className="input" />
+                    <input name="phone" required placeholder="Telefone / WhatsApp" className="input" />
+                    <input name="address" required placeholder="Endereço de Entrega" className="input" />
+                  </div>
+                  <button type="submit" className="btn-primary w-full py-5 text-lg font-black rounded-2xl shadow-2xl">Enviar Pedido</button>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            isOpen={!!selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+            onAddToCart={handleAddToCart}
+          />
+        )}
       </div>
     );
   }
 
   if (view === 'tracking') {
-    return (
-      <div className="min-h-screen bg-secondary flex items-center justify-center p-6">
-        <div className="card w-full max-w-md p-8 text-center space-y-6">
-          <div className="w-16 h-16 bg-success/10 text-success rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle2 size={32} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Pedido Recebido!</h2>
-            <p className="text-text-muted">Acompanhe o status do seu pedido abaixo.</p>
-          </div>
-
-          <div className="bg-gray-50 rounded-2xl p-6 space-y-6 text-left">
-            <div className="flex items-center gap-4">
-              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", trackingOrder.status === 'pending' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400')}>
-                <Clock size={20} />
-              </div>
-              <div>
-                <p className="font-bold">Pendente</p>
-                <p className="text-xs text-text-muted">Aguardando confirmação</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", trackingOrder.status === 'preparing' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400')}>
-                <Utensils size={20} />
-              </div>
-              <div>
-                <p className="font-bold">Preparando</p>
-                <p className="text-xs text-text-muted">Seu pedido está na cozinha</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className={cn("w-10 h-10 rounded-full flex items-center justify-center", trackingOrder.status === 'delivering' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-400')}>
-                <Truck size={20} />
-              </div>
-              <div>
-                <p className="font-bold">Em Entrega</p>
-                <p className="text-xs text-text-muted">O entregador está a caminho</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 flex flex-col gap-2">
-            <button onClick={() => setView('landing')} className="btn-secondary w-full">Voltar ao Início</button>
-            <p className="text-xs text-text-muted">Dúvidas? Ligue para {trackingOrder.restaurant_phone}</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <TrackingView onBack={() => setView('landing')} initialOrder={trackingOrder} />;
   }
 
-  return null;
+  return (
+    <div className="min-h-screen bg-white">
+      <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    </div>
+  );
 }

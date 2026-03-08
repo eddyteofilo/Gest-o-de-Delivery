@@ -519,6 +519,43 @@ async function startServer() {
     }
   });
 
+  app.post('/api/restaurant/customers/bulk', authenticate, async (req: any, res) => {
+    const { customers } = req.body;
+    if (!Array.isArray(customers)) return res.status(400).json({ error: 'Formato inválido' });
+
+    try {
+      const customersWithId = customers.map(c => ({
+        ...c,
+        restaurant_id: req.user.id
+      }));
+
+      const { data, error } = await supabase
+        .from('customers')
+        .insert(customersWithId)
+        .select();
+
+      if (error) throw error;
+      res.json({ success: true, count: data.length });
+    } catch (err: any) {
+      console.error('Bulk import error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/restaurant/customers/:id', authenticate, async (req: any, res) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('restaurant_id', req.user.id);
+      if (error) throw error;
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/restaurant/orders/counter', authenticate, async (req: any, res) => {
     const { customer_name, customer_phone, customer_address, items } = req.body;
 

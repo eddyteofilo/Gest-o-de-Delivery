@@ -1,51 +1,91 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #4A90E2;
-  --color-secondary: #F5F5F5;
-  --color-text-main: #333333;
-  --color-text-muted: #666666;
-  --color-success: #81C784;
-  --color-error: #E57373;
-  
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-primary: #FF5833;
+  /* Orange Coral Vibrante */
+  --color-primary-soft: #FFF2F0;
+  /* Fundo suave para botões/destaques */
+  --color-accent: #1A1A1A;
+  --color-secondary: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-border: #F1F5F9;
+  --color-text-main: #1E293B;
+  --color-text-muted: #64748B;
+  --color-success: #10B981;
+  --color-error: #EF4444;
+
+  --font-sans: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   body {
-    @apply bg-white text-text-main font-sans antialiased;
+    @apply bg-secondary text-text-main font-sans antialiased;
   }
 }
 
 @layer components {
+  .glass {
+    @apply bg-white/90 backdrop-blur-xl border border-white shadow-lg shadow-black/[0.02];
+  }
+
+  .glass-dark {
+    @apply bg-white border border-border shadow-2xl shadow-black/[0.04];
+  }
+
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+    @apply px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
   }
+
   .btn-primary {
-    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-primary text-white hover:bg-blue-600;
+    @apply px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-primary text-white shadow-xl shadow-primary/20 hover:shadow-primary/30;
   }
+
   .btn-secondary {
-    @apply px-4 py-2 rounded-lg font-medium transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-gray-100 text-text-main hover:bg-gray-200;
+    @apply px-8 py-4 rounded-2xl font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none bg-primary-soft text-primary border border-transparent hover:bg-primary/10;
   }
+
   .card {
-    @apply bg-white border border-gray-100 rounded-xl p-4 shadow-sm;
+    @apply bg-surface border border-border rounded-[2.5rem] p-6 shadow-sm hover:shadow-xl transition-all duration-500;
   }
+
   .input {
-    @apply w-full px-4 py-2 bg-secondary border border-transparent rounded-lg focus:outline-none focus:border-primary/30 transition-all;
+    @apply w-full px-6 py-4 bg-secondary border border-border rounded-xl focus:outline-none focus:ring-0 focus:border-primary transition-all font-medium placeholder:text-text-muted/40;
+  }
+
+  .input-minimal {
+    @apply w-full py-4 bg-transparent border-b border-border focus:outline-none focus:border-primary transition-all font-medium placeholder:text-text-muted/30;
   }
 }
 
-/* Custom scrollbar for minimalist feel */
-::-webkit-scrollbar {
-  width: 6px;
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
 }
+
+/* Modern shadows */
+.shadow-premium {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #E0E0E0;
-  border-radius: 10px;
+  background: #E5E7EB;
+  border-radius: 20px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #D0D0D0;
+  background: #D1D5DB;
 }
