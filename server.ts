@@ -16,11 +16,11 @@ import { createClient } from '@supabase/supabase-js';
 dotenv.config();
 
 // Validação de variáveis de ambiente obrigatórias
-const requiredEnvVars = ['JWT_SECRET', 'VITE_SUPABASE_URL'];
+const requiredEnvVars = ['JWT_SECRET', 'VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingVars.length > 0) {
-  console.error('❌ Variáveis de ambiente obrigatórias ausentes:', missingVars.join(', '));
-  process.exit(1);
+  console.warn('⚠️ Atenção: Algumas variáveis de ambiente obrigatórias estão ausentes no sistema:', missingVars.join(', '));
+  console.warn('Isso pode causar erros 500 nas rotas de API. Verifique as configurações na Vercel.');
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1106,10 +1106,12 @@ async function startServer() {
   // Global error handler — ANTES do Vite middleware
   app.use((err: any, req: any, res: any, next: any) => {
     const status = err.status || 500;
-    console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+    // Log detalhado no console do servidor (Vercel Logs)
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err);
+    
     res.status(status).json({
       error: process.env.NODE_ENV === 'production'
-        ? 'Erro interno do servidor'
+        ? (status === 500 ? 'Erro interno no servidor de produção' : err.message)
         : err.message
     });
   });
