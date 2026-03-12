@@ -22,11 +22,23 @@ import {
   CreditCard,
   ArrowLeft,
   Heart,
-  User
+  User,
+  MapPin,
+  Bike,
+  Check,
+  Home,
+  FileText,
+  Star,
+  Map,
+  Globe,
+  Shield,
+  Brain,
+  MessageSquare,
+  BarChart2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, formatCurrency, formatDate, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from './utils';
-import { Restaurant, Product, Order, Courier, Category, ProductOption, Customer } from './types';
+import { Restaurant, Product, Order, Courier, Category, ProductOption, Customer, Promotion, Plan } from './types';
 import Papa from 'papaparse';
 
 // --- Components ---
@@ -358,6 +370,51 @@ const CourierModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose:
   );
 };
 
+const PromotionModal = ({ isOpen, onClose, onSubmit, promotion }: { isOpen: boolean, onClose: () => void, onSubmit: (e: React.FormEvent) => void, promotion: Promotion | null }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 relative shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-2xl font-black text-text-main">{promotion ? 'Editar Promoção' : 'Nova Promoção'}</h3>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Título da Campanha</label>
+              <input name="title" required defaultValue={promotion?.title} placeholder="Ex: Combos de Verão" className="input" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Texto do Desconto</label>
+              <input name="discount_text" required defaultValue={promotion?.discount_text} placeholder="Ex: 30% OFF" className="input" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Imagem da Promoção</label>
+              <input name="image_url" defaultValue={promotion?.image_url} placeholder="Cole a URL da imagem (https://...)" className="input" />
+              <p className="text-xs text-center text-text-muted my-1">— OU —</p>
+              <input name="image_file" type="file" accept="image/*" className="input text-sm" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-text-muted ml-1">Válido Até (Opcional)</label>
+              <input name="valid_until" type="datetime-local" defaultValue={promotion?.valid_until ? new Date(promotion.valid_until).toISOString().slice(0, 16) : ''} className="input" />
+            </div>
+
+            <div className="pt-4 flex gap-3">
+              <button type="button" onClick={onClose} className="flex-1 py-4 bg-gray-50 text-text-main font-black rounded-2xl hover:bg-gray-100 uppercase tracking-widest text-xs">Cancelar</button>
+              <button type="submit" className="flex-[2] btn-primary py-4 shadow-xl shadow-primary/20">{promotion ? 'Salvar Alterações' : 'Criar Promoção'}</button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    )}
+  </AnimatePresence>
+);
+
 const DailyOfferModal = ({ isOpen, product, onClose, onAddToCart }: { isOpen: boolean, product: Product | null, onClose: () => void, onAddToCart: (p: Product) => void }) => (
   <AnimatePresence>
     {isOpen && product && (
@@ -501,25 +558,191 @@ const ProductDetailModal = ({ product, isOpen, onClose, onAddToCart }: { product
 
 // --- Views ---
 
-const DashboardView = ({ summary }: { summary: any }) => (
-  <div className="space-y-6">
-    <h2 className="text-2xl font-bold">Visão Geral</h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div className="card">
-        <p className="text-text-muted text-sm">Pedidos Totais</p>
-        <p className="text-3xl font-bold mt-1">{summary?.total_orders || 0}</p>
+const FeatureGuard = ({ 
+  enabled, 
+  title, 
+  description, 
+  onUpgrade, 
+  children 
+}: { 
+  enabled: boolean, 
+  title: string, 
+  description: string, 
+  onUpgrade: () => void, 
+  children: React.ReactNode 
+}) => {
+  if (enabled) return <>{children}</>;
+  
+  return (
+    <div className="relative min-h-[400px]">
+      <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white p-8 rounded-3xl shadow-2xl border border-gray-100 max-w-sm"
+        >
+          <div className="w-16 h-16 bg-primary-soft text-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield size={32} />
+          </div>
+          <h4 className="font-black text-xl text-text-main mb-2">Funcionalidade Premium</h4>
+          <p className="text-sm text-text-muted mb-6">{description}</p>
+          <button 
+            type="button" 
+            onClick={onUpgrade} 
+            className="w-full py-3 bg-primary text-white font-black rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            Fazer Upgrade Agora
+          </button>
+        </motion.div>
       </div>
-      <div className="card">
-        <p className="text-text-muted text-sm">Receita Total</p>
-        <p className="text-3xl font-bold mt-1 text-success">{formatCurrency(summary?.total_revenue || 0)}</p>
-      </div>
-      <div className="card">
-        <p className="text-text-muted text-sm">Pedidos Concluídos</p>
-        <p className="text-3xl font-bold mt-1">{summary?.completed_orders || 0}</p>
+      <div className="opacity-40 grayscale pointer-events-none select-none">
+        {children}
       </div>
     </div>
+  );
+};
+
+const DashboardView = ({ summary, showAdvanced }: { summary: any, showAdvanced: boolean }) => (
+  <div className="space-y-6">
+    <div className="flex justify-between items-center">
+      <h2 className="text-2xl font-black text-text-main">Visão Geral</h2>
+      {!showAdvanced && (
+        <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black uppercase rounded-lg">Plano Básico</span>
+      )}
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="card p-6 border-none shadow-premium bg-white">
+        <p className="text-text-muted text-xs font-black uppercase tracking-widest">Pedidos Totais</p>
+        <p className="text-4xl font-black mt-2 text-text-main">{summary?.total_orders || 0}</p>
+      </div>
+      <div className="card p-6 border-none shadow-premium bg-white">
+        <p className="text-text-muted text-xs font-black uppercase tracking-widest">Receita Total</p>
+        <p className="text-4xl font-black mt-2 text-primary">{formatCurrency(summary?.total_revenue || 0)}</p>
+      </div>
+      <div className="card p-6 border-none shadow-premium bg-white">
+        <p className="text-text-muted text-xs font-black uppercase tracking-widest">Ticket Médio</p>
+        <p className="text-4xl font-black mt-2 text-text-main">{formatCurrency(summary?.total_revenue / (summary?.total_orders || 1))}</p>
+      </div>
+    </div>
+
+    {showAdvanced ? (
+      <div className="card p-8 border-none shadow-premium bg-white space-y-6">
+        <div className="flex items-center gap-2">
+          <BarChart2 size={24} className="text-primary" />
+          <h3 className="text-lg font-black text-text-main">Análise de Performance</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <p className="text-xs font-black uppercase text-text-muted">Top Produtos</p>
+            <div className="space-y-2">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                  <span className="font-bold text-sm">Produto {i}</span>
+                  <span className="text-xs font-black text-primary">{(40 - i * 5)} vendas</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-4">
+            <p className="text-xs font-black uppercase text-text-muted">Horários de Pico</p>
+            <div className="h-40 bg-gray-50 rounded-2xl flex items-end gap-2 p-4">
+              {[40, 70, 90, 60, 30, 80, 100].map((h, i) => (
+                <div key={i} className="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary transition-all cursor-help" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="card p-8 border-none shadow-premium bg-gray-50/50 border-2 border-dashed border-gray-100 flex flex-col items-center text-center space-y-4">
+        <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-primary">
+          <BarChart2 size={24} />
+        </div>
+        <div>
+          <h4 className="font-bold text-text-main">Relatórios Avançados</h4>
+          <p className="text-xs text-text-muted max-w-xs mt-1">Desbloqueie análises detalhadas de produtos, horários e comportamento de clientes.</p>
+        </div>
+        <button onClick={() => {}} className="text-xs font-black text-primary hover:underline">Upgrade para Profissional</button>
+      </div>
+    )}
   </div>
 );
+
+const AIView = ({ restaurant, token }: { restaurant: Restaurant | null, token: string | null }) => {
+  const [enabled, setEnabled] = useState(false);
+  
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-black text-text-main">Assistente de IA</h2>
+          <p className="text-text-muted font-medium mt-1">Configure o Chatbot inteligente para automatizar seus pedidos no WhatsApp e Web.</p>
+        </div>
+        <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-gray-100">
+          <span className="text-xs font-black uppercase text-text-muted ml-2">Status do Bot</span>
+          <button 
+            onClick={() => setEnabled(!enabled)}
+            className={cn(
+              "relative w-12 h-6 rounded-full transition-all flex items-center px-1",
+              enabled ? "bg-primary" : "bg-gray-200"
+            )}
+          >
+            <div className={cn("w-4 h-4 bg-white rounded-full shadow-sm transition-all", enabled ? "translate-x-6" : "translate-x-0")} />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="card p-8 bg-white border-none shadow-premium space-y-6">
+          <h3 className="font-black text-lg flex items-center gap-2">
+            <Settings size={20} className="text-primary" />
+            Configurações do Cérebro
+          </h3>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">Personalidade da IA</label>
+              <select className="input text-sm">
+                <option>Atendente Amigável</option>
+                <option>Formal e Eficiente</option>
+                <option>Vendedor Persuasivo</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">Instruções Customizadas</label>
+              <textarea 
+                className="input min-h-[120px] text-sm resize-none" 
+                placeholder="Ex: Ofereça sempre uma bebida se o cliente pedir um hambúrguer..."
+              />
+            </div>
+            <button className="btn-primary w-full py-4 text-sm font-black rounded-2xl">Salvar Cérebro</button>
+          </div>
+        </div>
+
+        <div className="card p-8 bg-black text-white border-none shadow-premium flex flex-col h-full">
+          <h3 className="font-black text-lg flex items-center gap-2 mb-6 text-primary">
+            <MessageSquare size={20} />
+            Simulador de Chat
+          </h3>
+          <div className="flex-1 bg-white/5 rounded-2xl p-4 overflow-y-auto space-y-4 mb-4">
+            <div className="flex flex-col gap-2">
+              <div className="bg-white/10 p-3 rounded-2xl rounded-bl-none max-w-[80%]">
+                <p className="text-xs font-medium">Olá! Eu sou o assistente de IA do {restaurant?.name}. Como posso te ajudar hoje?</p>
+              </div>
+              <div className="bg-primary p-3 rounded-2xl rounded-br-none max-w-[80%] self-end">
+                <p className="text-xs font-medium">Quero ver o cardápio!</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input className="flex-1 bg-white/10 border-none rounded-xl px-4 py-3 text-xs focus:ring-1 ring-primary" placeholder="Digite para testar..." />
+            <button className="p-3 bg-primary rounded-xl"><Plus size={18} /></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ProductsView = ({ products, onAdd, onViewOnline, onDelete }: { products: Product[], onAdd: () => void, onViewOnline: () => void, onDelete: (id: number) => void }) => (
   <div className="space-y-6">
@@ -563,12 +786,22 @@ const ProductsView = ({ products, onAdd, onViewOnline, onDelete }: { products: P
   </div>
 );
 
-const OrdersView = ({ orders, onUpdateStatus, onViewOrder }: { orders: Order[], onUpdateStatus: (id: number, status: string) => void, onViewOrder: (order: Order) => void }) => (
+const OrdersView = ({ orders, onUpdateStatus, onViewOrder, onDeleteOrder }: { orders: Order[], onUpdateStatus: (id: number, status: string) => void, onViewOrder: (order: Order) => void, onDeleteOrder: (id: number) => void }) => (
   <div className="space-y-6">
     <h2 className="text-2xl font-bold">Pedidos</h2>
     <div className="space-y-3">
       {orders.map(o => (
-        <div key={o.id} className="card flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-primary/30 transition-colors cursor-pointer" onClick={() => onViewOrder(o)}>
+        <div key={o.id} className="card flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-primary/30 transition-colors cursor-pointer group relative" onClick={() => onViewOrder(o)}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteOrder(o.id);
+            }}
+            className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 z-10"
+            title="Excluir Pedido"
+          >
+            <Trash2 size={14} />
+          </button>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg">#{o.id}</span>
@@ -596,6 +829,12 @@ const OrdersView = ({ orders, onUpdateStatus, onViewOrder }: { orders: Order[], 
           </div>
         </div>
       ))}
+      {orders.length === 0 && (
+        <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-100">
+          <ShoppingBag size={48} className="mx-auto text-gray-200 mb-4" />
+          <p className="text-text-muted">Nenhum pedido encontrado</p>
+        </div>
+      )}
     </div>
   </div>
 );
@@ -706,94 +945,175 @@ const CustomersView = ({ customers, onImport, onDelete, token }: { customers: Cu
 };
 
 const ProductionView = ({ orders, onUpdateStatus, onViewOrder, couriers, token }: { orders: Order[], onUpdateStatus: (id: number, status: string) => void, onViewOrder: (order: Order) => void, couriers: Courier[], token: string | null }) => {
+  const [activeTab, setActiveTab] = useState('pending');
+  const [searchQuery, setSearchQuery] = useState('');
+
   const stages = [
-    { id: 'pending', label: 'Pendente', icon: Clock, color: 'bg-yellow-50 text-yellow-700 border-yellow-100' },
-    { id: 'preparing', label: 'Preparando', icon: Utensils, color: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { id: 'ready', label: 'Pronto', icon: CheckCircle2, color: 'bg-green-50 text-green-700 border-green-100' },
-    { id: 'delivering', label: 'Em Entrega', icon: Truck, color: 'bg-purple-50 text-purple-700 border-purple-100' },
+    { id: 'pending', label: 'Pendentes', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100', activeBg: 'bg-orange-600' },
+    { id: 'preparing', label: 'Em Preparo', icon: Utensils, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', activeBg: 'bg-blue-600' },
+    { id: 'ready', label: 'Para Entrega', icon: Truck, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100', activeBg: 'bg-green-600' },
+    { id: 'completed', label: 'Concluídos', icon: CheckCircle2, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-100', activeBg: 'bg-gray-600' },
   ];
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Produção em Tempo Real</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stages.map(stage => (
-          <div key={stage.id} className="flex flex-col gap-4">
-            <div className={cn("flex items-center gap-2 p-3 rounded-xl border font-bold", stage.color)}>
-              <stage.icon size={18} />
-              {stage.label}
-              <span className="ml-auto bg-white/50 px-2 py-0.5 rounded-lg text-xs">
-                {orders.filter(o => o.status === stage.id).length}
-              </span>
-            </div>
-            <div className="space-y-3">
-              {orders.filter(o => o.status === stage.id).map(order => (
-                <motion.div
-                  layoutId={order.id.toString()}
-                  key={order.id}
-                  className="card p-4 cursor-pointer hover:border-primary/30 transition-all"
-                  onClick={() => onViewOrder(order)}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold">#{order.id}</span>
-                    <span className="text-[10px] text-text-muted">{formatDate(order.created_at)}</span>
-                  </div>
-                  <p className="text-sm font-medium line-clamp-1">{order.customer_name}</p>
-                  <p className="text-xs text-text-muted mt-1 line-clamp-2">{order.customer_address}</p>
+  const filteredOrders = orders.filter(o =>
+    o.status === activeTab &&
+    (o.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) || o.id.toString().includes(searchQuery))
+  );
 
-                  <div className="mt-4 flex flex-col gap-2">
-                    {stage.id === 'pending' && (
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight">Painel de Produção</h2>
+          <p className="text-text-muted mt-1 font-medium">Gerencie o fluxo de pedidos em tempo real</p>
+        </div>
+
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por cliente ou Nº..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all font-medium placeholder:text-text-muted/40 shadow-sm"
+          />
+        </div>
+      </div>
+
+      {/* Status Tabs */}
+      <div className="flex gap-2 p-1.5 bg-gray-100/50 rounded-[2rem] overflow-x-auto no-scrollbar">
+        {stages.map(stage => (
+          <button
+            key={stage.id}
+            onClick={() => setActiveTab(stage.id)}
+            className={cn(
+              "flex items-center gap-3 px-6 py-3.5 rounded-[1.5rem] font-black text-sm transition-all whitespace-nowrap",
+              activeTab === stage.id
+                ? `${stage.activeBg} text-white shadow-lg`
+                : "bg-transparent text-text-muted hover:bg-white hover:shadow-sm"
+            )}
+          >
+            <stage.icon size={18} />
+            {stage.label}
+            <span className={cn(
+              "ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-black",
+              activeTab === stage.id ? "bg-white/20 text-white" : "bg-gray-200 text-text-muted"
+            )}>
+              {orders.filter(o => o.status === stage.id).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Orders Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <AnimatePresence mode="popLayout">
+          {filteredOrders.length > 0 ? filteredOrders.map(order => (
+            <motion.div
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              key={order.id}
+              className="card p-0 overflow-hidden border-none shadow-premium hover:ring-2 ring-primary/20 bg-white group"
+              onClick={() => onViewOrder(order)}
+            >
+              <div className="p-6 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                    stages.find(s => s.id === order.status)?.bg,
+                    stages.find(s => s.id === order.status)?.color,
+                    stages.find(s => s.id === order.status)?.border
+                  )}>
+                    {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS]}
+                  </div>
+                  <span className="text-[10px] font-bold text-text-muted">{formatDate(order.created_at)}</span>
+                </div>
+
+                <div>
+                  <h4 className="text-xl font-black text-text-main flex items-center gap-2">
+                    #{order.id}
+                    <span className="text-sm font-medium text-text-muted">— mesa {Math.floor(Math.random() * 20) + 1}</span>
+                  </h4>
+                  <p className="text-sm font-bold text-text-main mt-1 line-clamp-1">{order.customer_name}</p>
+                </div>
+
+                <div className="space-y-2 py-2 border-y border-gray-50">
+                  <p className="text-[10px] font-black text-text-muted uppercase tracking-wider">Itens do Pedido</p>
+                  <div className="space-y-1">
+                    {order.items?.slice(0, 3).map((item: any, i: number) => (
+                      <p key={i} className="text-xs font-bold text-text-main flex gap-2">
+                        <span className="text-primary">{item.quantity}x</span>
+                        <span className="line-clamp-1">{item.product_name}</span>
+                      </p>
+                    ))}
+                    {order.items?.length > 3 && (
+                      <p className="text-xs text-primary font-bold">+{order.items.length - 3} outros itens</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Total</span>
+                    <span className="text-lg font-black text-primary">{formatCurrency(order.total)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onViewOrder(order); }}
+                      className="p-3 bg-gray-50 text-text-muted rounded-xl hover:bg-gray-100 transition-colors"
+                    >
+                      <Eye size={18} />
+                    </button>
+                    {order.status === 'pending' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onUpdateStatus(order.id, 'preparing'); }}
-                        className="w-full bg-blue-600 text-white text-[10px] font-bold py-1.5 rounded-lg hover:bg-blue-700"
+                        className="bg-orange-600 text-white px-5 py-3 rounded-xl text-xs font-black shadow-lg shadow-orange-200 hover:bg-orange-700 active:scale-95 transition-all"
                       >
-                        INICIAR PREPARO
+                        CONFIRMAR
                       </button>
                     )}
-                    {stage.id === 'preparing' && (
+                    {order.status === 'preparing' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onUpdateStatus(order.id, 'ready'); }}
-                        className="w-full bg-green-600 text-white text-[10px] font-bold py-1.5 rounded-lg hover:bg-green-700"
+                        className="bg-blue-600 text-white px-5 py-3 rounded-xl text-xs font-black shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
                       >
-                        MARCAR COMO PRONTO
+                        PRONTO
                       </button>
                     )}
-                    {stage.id === 'ready' && (
-                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <p className="text-[10px] font-bold text-text-muted uppercase">Selecionar Entregador</p>
-                        <select
-                          className="w-full text-[10px] p-1.5 border rounded-lg bg-white"
-                          onChange={async (e) => {
-                            const courierId = e.target.value ? parseInt(e.target.value) : null;
-                            if (courierId) {
-                              await fetch(`/api/restaurant/orders/${order.id}/status`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                                body: JSON.stringify({ status: 'delivering', courier_id: courierId })
-                              });
-                              onUpdateStatus(order.id, 'delivering');
-                            }
-                          }}
-                        >
-                          <option value="">Escolher...</option>
-                          {couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      </div>
+                    {order.status === 'ready' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(order.id, 'delivering'); }}
+                        className="bg-green-600 text-white px-5 py-3 rounded-xl text-xs font-black shadow-lg shadow-green-200 hover:bg-green-700 active:scale-95 transition-all"
+                      >
+                        ENVIAR
+                      </button>
                     )}
-                    {stage.id === 'delivering' && (
+                    {order.status === 'delivering' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); onUpdateStatus(order.id, 'completed'); }}
-                        className="w-full bg-primary text-white text-[10px] font-bold py-1.5 rounded-lg hover:bg-primary/90"
+                        className="bg-primary text-white px-5 py-3 rounded-xl text-xs font-black shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
                       >
-                        CONCLUIR ENTREGA
+                        CONCLUIR
                       </button>
                     )}
                   </div>
-                </motion.div>
-              ))}
+                </div>
+              </div>
+            </motion.div>
+          )) : (
+            <div className="col-span-full py-20 text-center space-y-4">
+              <div className="w-20 h-20 bg-gray-50 text-gray-200 rounded-full flex items-center justify-center mx-auto">
+                <ShoppingBag size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black">Nenhum pedido aqui</h3>
+                <p className="text-text-muted">Aguardando novos pedidos entrarem na fila.</p>
+              </div>
             </div>
-          </div>
-        ))}
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -823,87 +1143,204 @@ const TrackingView = ({ onBack, initialOrder }: { onBack: () => void, initialOrd
     }
   };
 
+  const steps = [
+    { status: 'pending', label: 'Aguardando', timeKey: 'created_at', icon: Check, color: 'bg-primary' },
+    { status: 'preparing', label: 'Preparando', timeKey: 'updated_at', icon: Utensils, color: 'bg-[#FF9E80]' },
+    { status: 'ready', label: 'Saiu para Entrega', timeKey: 'updated_at', icon: Bike, color: 'bg-primary' },
+    { status: 'delivering', label: 'Chegando', timeKey: 'updated_at', icon: MapPin, color: 'bg-gray-200' },
+    { status: 'completed', label: 'Entregue', timeKey: 'updated_at', icon: Check, color: 'bg-gray-100' },
+  ];
+
+  const currentStepIndex = order ? steps.findIndex(s => s.status === order.status) : -1;
+
   return (
-    <div className="min-h-screen bg-secondary p-4 md:p-6">
-      <div className="max-w-md mx-auto space-y-8">
-        <button onClick={onBack} className="flex items-center gap-2 text-text-muted hover:text-primary transition-colors">
-          <ChevronRight className="rotate-180" size={20} />
-          Voltar ao Cardápio
+    <div className="min-h-screen bg-[#FDFDFD] pb-32">
+      {/* Header */}
+      <header className="bg-white px-6 py-6 flex items-center justify-between border-b border-gray-50 sticky top-0 z-50">
+        <button onClick={onBack} className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors">
+          <ArrowLeft size={24} className="text-primary" />
         </button>
+        <h1 className="text-xl font-bold text-text-main flex-1 text-center pr-8">Acompanhe seu Pedido</h1>
+      </header>
 
-        <div className="text-center">
-          <h1 className="text-3xl font-bold">Acompanhar Pedido</h1>
-          <p className="text-text-muted mt-2">Digite o número do seu pedido para ver o status em tempo real</p>
-        </div>
-
-        <div className="card space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-text-muted uppercase">Número do Pedido</label>
-            <input
-              type="text"
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-              placeholder="Ex: 123"
-              className="w-full bg-secondary border-none rounded-xl px-4 py-3 focus:ring-2 ring-primary/20"
-            />
-          </div>
-          <button
-            onClick={handleTrack}
-            disabled={loading}
-            className="w-full btn-primary py-4"
-          >
-            {loading ? 'Buscando...' : 'Acompanhar'}
-          </button>
-          {error && <p className="text-error text-center text-sm font-medium">{error}</p>}
-        </div>
-
-        {order && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-50 pb-4">
-              <div>
-                <p className="text-xs text-text-muted uppercase font-bold">Status Atual</p>
-                <p className={cn("text-lg font-bold mt-1", ORDER_STATUS_COLORS[order.status as keyof typeof ORDER_STATUS_COLORS])}>
-                  {ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS]}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-                {order.status === 'pending' && <Clock size={24} />}
-                {order.status === 'preparing' && <Utensils size={24} />}
-                {order.status === 'ready' && <CheckCircle2 size={24} />}
-                {order.status === 'delivering' && <Truck size={24} />}
-                {order.status === 'completed' && <CheckCircle2 size={24} />}
-              </div>
+      <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
+        {!order ? (
+          <div className="card p-8 space-y-6 text-center">
+            <div className="w-20 h-20 bg-primary-soft text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search size={32} />
             </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black">Rastrear Pedido</h2>
+              <p className="text-text-muted">Informe o número do pedido impresso no seu canhoto ou no WhatsApp.</p>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+                placeholder="Nº do Pedido (ex: 123)"
+                className="input text-center text-lg font-bold"
+              />
+            </div>
+            <button onClick={handleTrack} disabled={loading} className="btn-primary w-full py-5 text-lg">
+              {loading ? 'Buscando...' : 'Localizar Pedido'}
+            </button>
+            {error && <p className="text-error font-bold">{error}</p>}
+          </div>
+        ) : (
+          <>
+            {/* Map Placeholder Card */}
+            <div className="card overflow-hidden p-0 border-none shadow-premium bg-white">
+              <div className="h-64 relative bg-[#E3EAFA]">
+                {/* Fake Map Content */}
+                <div className="absolute inset-0 opacity-40 bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=-23.5505,-46.6333&zoom=14&size=600x400&sensor=false')] bg-cover grayscale" />
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className={cn("w-3 h-3 rounded-full", order.status !== 'completed' ? 'bg-primary animate-pulse' : 'bg-gray-300')} />
-                <div>
-                  <p className="font-bold text-sm">
-                    {order.status === 'pending' && 'Aguardando confirmação do restaurante'}
-                    {order.status === 'preparing' && 'Seu pedido está sendo preparado com carinho'}
-                    {order.status === 'ready' && 'Seu pedido está pronto e aguardando o entregador'}
-                    {order.status === 'delivering' && 'O entregador já está a caminho do seu endereço'}
-                    {order.status === 'completed' && 'Pedido entregue! Bom apetite!'}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5">{formatDate(order.created_at)}</p>
+                {/* Float Courier Info */}
+                <div className="absolute top-4 left-4 right-4 animate-in fade-in slide-in-from-top-4 duration-700">
+                  <div className="glass px-4 py-3 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center">
+                      <Bike size={24} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Entregador</p>
+                      <p className="text-sm font-bold text-text-main">Equipe {order.restaurant_name} está a caminho</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pin points */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="relative">
+                    <div className="absolute -inset-4 bg-primary/20 rounded-full animate-ping" />
+                    <div className="w-6 h-6 bg-primary border-2 border-white rounded-full shadow-lg" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-secondary/50 p-4 rounded-xl space-y-2">
-              <p className="text-xs font-bold text-text-muted uppercase">Restaurante</p>
-              <p className="text-sm font-medium">{order.restaurant_name}</p>
-              <p className="text-xs text-text-muted">{order.restaurant_phone}</p>
+            {/* Estimated Arrival */}
+            <div className="card bg-primary-soft border-none p-8 text-center space-y-4">
+              <p className="text-sm font-bold text-text-muted uppercase tracking-widest">Chegada Estimada</p>
+              <h2 className="text-6xl font-black text-primary tracking-tighter">
+                {new Date(new Date(order.created_at).getTime() + 45 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </h2>
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-between text-[11px] font-bold uppercase text-primary">
+                  <span>{ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS]}</span>
+                  <span>{order.status === 'completed' ? '100' : (currentStepIndex + 1) * 20}%</span>
+                </div>
+                <div className="h-4 bg-white/50 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(currentStepIndex + 1) * 20}%` }}
+                    className="h-full bg-primary"
+                  />
+                </div>
+              </div>
             </div>
-          </motion.div>
+
+            {/* Status Stepper */}
+            <div className="card space-y-8 p-8">
+              <h3 className="text-lg font-black tracking-tight">Status do Pedido</h3>
+              <div className="space-y-0 relative ml-4">
+                {/* Vertical Line */}
+                <div className="absolute left-[3px] top-6 bottom-6 w-[2px] bg-gray-100" />
+
+                {steps.map((step, idx) => {
+                  const isActive = idx <= currentStepIndex;
+                  const isCurrent = idx === currentStepIndex;
+
+                  return (
+                    <div key={idx} className="relative pl-10 pb-10 last:pb-0">
+                      {/* Circle Indicator */}
+                      <div className={cn(
+                        "absolute left-[-16px] top-0 w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-sm transition-all duration-500",
+                        isActive ? "bg-primary text-white scale-110" : "bg-gray-100 text-gray-300"
+                      )}>
+                        <step.icon size={16} strokeWidth={isActive ? 3 : 2} />
+                      </div>
+
+                      {/* Content */}
+                      <div className={cn("transition-opacity", isActive ? "opacity-100" : "opacity-40")}>
+                        <p className={cn("text-base font-black tracking-tight", isCurrent ? "text-primary mt-1" : "text-text-main")}>
+                          {step.label}
+                        </p>
+                        <p className="text-xs text-text-muted mt-0.5">
+                          {isActive ? formatDate(order.updated_at) : 'Aguardando...'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Order Resume Card */}
+            <div className="card p-8 space-y-6">
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
+                <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                  <FileText size={20} />
+                </div>
+                <h3 className="text-lg font-black tracking-tight">Resumo do Pedido</h3>
+              </div>
+
+              <div className="space-y-4">
+                {order.items?.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center text-sm">
+                    <p className="font-bold text-text-main">
+                      <span className="text-text-muted font-medium mr-2">{item.quantity}x</span>
+                      {item.product_name}
+                    </p>
+                    <span className="font-bold text-text-main">{formatCurrency(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 space-y-3 border-t border-gray-50">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-text-muted">Taxa de entrega</span>
+                  <span className="font-black text-primary">Grátis</span>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-lg font-black text-text-main">Total</span>
+                  <span className="text-2xl font-black text-primary tracking-tighter">
+                    {formatCurrency(order.total_amount)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setOrder(null)} className="w-full text-text-muted font-bold text-sm py-4 hover:text-primary transition-colors">
+              Rastrear outro pedido
+            </button>
+          </>
         )}
       </div>
+
+      {/* Bottom Navigation (Image 1 style) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-50 h-[80px] px-6 flex items-center justify-around z-50">
+        <button onClick={onBack} className="flex flex-col items-center gap-1 text-text-muted opacity-40">
+          <Home size={24} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Início</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-primary">
+          <FileText size={24} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Pedidos</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-text-muted opacity-40">
+          <Search size={24} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Explorar</span>
+        </button>
+        <button className="flex flex-col items-center gap-1 text-text-muted opacity-40">
+          <User size={24} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Perfil</span>
+        </button>
+      </nav>
     </div>
   );
 };
 
-const CounterOrderView = ({ products, customers, onOrderCreated, token }: { products: Product[], customers: Customer[], onOrderCreated: () => void, token: string | null }) => {
+const CounterOrderView = ({ products, customers, promotions, onOrderCreated, token }: { products: Product[], customers: Customer[], promotions: Promotion[], onOrderCreated: () => void, token: string | null }) => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -1080,6 +1517,30 @@ const CounterOrderView = ({ products, customers, onOrderCreated, token }: { prod
             <Utensils size={20} className="text-primary" />
             Produtos
           </h3>
+
+          {/* Active Promotions in Counter */}
+          {promotions && promotions.length > 0 && (
+            <div className="space-y-2 mb-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1"><Star size={12} /> Promoções Ativas</p>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                {promotions.filter(p => p.active).map(promo => (
+                  <div key={promo.id} className="flex-shrink-0 w-52 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-3 space-y-1">
+                    {promo.image_url && (
+                      <div className="h-20 rounded-xl overflow-hidden mb-2">
+                        <img src={promo.image_url} alt={promo.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    )}
+                    <p className="font-black text-sm text-text-main leading-tight">{promo.title}</p>
+                    <span className="inline-block bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">{promo.discount_text}</span>
+                    {promo.valid_until && (
+                      <p className="text-[10px] text-text-muted flex items-center gap-0.5"><Clock size={10} /> Até {new Date(promo.valid_until).toLocaleDateString('pt-BR')}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {products.map(p => (
               <button
@@ -1168,7 +1629,21 @@ const CounterOrderView = ({ products, customers, onOrderCreated, token }: { prod
 };
 
 
-const SettingsView = ({ restaurant, onUpdate, token, setError, setSuccess }: { restaurant: Restaurant | null, onUpdate: () => void, token: string | null, setError: (v: string | null) => void, setSuccess: (v: string | null) => void }) => {
+const SettingsView = ({ 
+  restaurant, 
+  onUpdate, 
+  token, 
+  setError, 
+  setSuccess,
+  setAdminTab
+}: { 
+  restaurant: Restaurant | null, 
+  onUpdate: () => void, 
+  token: string | null, 
+  setError: (v: string | null) => void, 
+  setSuccess: (v: string | null) => void,
+  setAdminTab: (tab: any) => void
+}) => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1194,6 +1669,11 @@ const SettingsView = ({ restaurant, onUpdate, token, setError, setSuccess }: { r
       logo_url,
       mercadopago_token: form.mercadopago_token.value,
       pagseguro_token: form.pagseguro_token.value,
+      google_tag_id: form.google_tag_id?.value || '',
+      fb_pixel_id: form.fb_pixel_id?.value || '',
+      tiktok_pixel_id: form.tiktok_pixel_id?.value || '',
+      primary_color: form.primary_color?.value || '#FF4C29',
+      secondary_color: form.secondary_color?.value || '#FDFDFD',
     };
 
     try {
@@ -1299,6 +1779,71 @@ const SettingsView = ({ restaurant, onUpdate, token, setError, setSuccess }: { r
             </div>
           </div>
         </div>
+        <div className={cn("card space-y-4 relative overflow-hidden", !restaurant?.plan?.features?.marketing_tags && "opacity-75 grayscale-[0.5]")}>
+          {!restaurant?.plan?.features?.marketing_tags && (
+            <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
+              <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 max-w-xs">
+                <Shield size={32} className="text-primary mx-auto mb-2" />
+                <h4 className="font-bold text-sm">Funcionalidade Premium</h4>
+                <p className="text-xs text-text-muted mb-3">O rastreamento de marketing está disponível apenas nos planos Profissional e Premium.</p>
+                <button type="button" onClick={() => setAdminTab('dashboard')} className="text-xs font-bold text-primary hover:underline">Fazer Upgrade Agora</button>
+              </div>
+            </div>
+          )}
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <BarChart3 size={20} className="text-primary" />
+            Marketing & Rastreamento
+          </h3>
+          <p className="text-sm text-text-muted">Adicione tags para medir o desempenho do seu cardápio.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-text-muted">Google Analytics (G-...) </label>
+              <input name="google_tag_id" defaultValue={restaurant?.google_tag_id || ''} className="input" placeholder="G-XXXXXXXXXX" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-text-muted">Facebook Pixel ID</label>
+              <input name="fb_pixel_id" defaultValue={restaurant?.fb_pixel_id || ''} className="input" placeholder="123456789012345" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-text-muted">TikTok Pixel ID</label>
+              <input name="tiktok_pixel_id" defaultValue={restaurant?.tiktok_pixel_id || ''} className="input" placeholder="CVO..." />
+            </div>
+          </div>
+        </div>
+
+        <div className={cn("card space-y-4 relative overflow-hidden", !restaurant?.plan?.features?.custom_colors && "opacity-75 grayscale-[0.5]")}>
+          {!restaurant?.plan?.features?.custom_colors && (
+            <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[2px] flex items-center justify-center p-6 text-center">
+              <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 max-w-xs">
+                <Shield size={32} className="text-primary mx-auto mb-2" />
+                <h4 className="font-bold text-sm">Funcionalidade Premium</h4>
+                <p className="text-xs text-text-muted mb-3">A personalização de cores está disponível apenas nos planos Profissional e Premium.</p>
+                <button type="button" onClick={() => setAdminTab('dashboard')} className="text-xs font-bold text-primary hover:underline">Fazer Upgrade Agora</button>
+              </div>
+            </div>
+          )}
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <Settings size={20} className="text-primary" />
+            Identidade Visual
+          </h3>
+          <p className="text-sm text-text-muted">Personalize as cores do seu cardápio online.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-text-muted">Cor Principal (Primária)</label>
+              <div className="flex gap-2">
+                <input type="color" name="primary_color" defaultValue={restaurant?.primary_color || '#FF4C29'} className="w-12 h-12 rounded-lg cursor-pointer p-1" />
+                <input defaultValue={restaurant?.primary_color || '#FF4C29'} className="input flex-1" readOnly />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold uppercase text-text-muted">Cor de Fundo (Páginas)</label>
+              <div className="flex gap-2">
+                <input type="color" name="secondary_color" defaultValue={restaurant?.secondary_color || '#FDFDFD'} className="w-12 h-12 rounded-lg cursor-pointer p-1" />
+                <input defaultValue={restaurant?.secondary_color || '#FDFDFD'} className="input flex-1" readOnly />
+              </div>
+            </div>
+          </div>
+        </div>
 
         <button type="submit" disabled={loading} className="btn-primary w-full py-4 shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
           {loading ? 'Salvando...' : 'Salvar Alterações'}
@@ -1310,22 +1855,643 @@ const SettingsView = ({ restaurant, onUpdate, token, setError, setSuccess }: { r
 
 // --- Main App ---
 
+const PromotionsView = ({ promotions, onAdd, onEdit, onDelete, onToggle }: { promotions: Promotion[], onAdd: () => void, onEdit: (p: Promotion) => void, onDelete: (id: number) => void, onToggle: (p: Promotion) => void }) => {
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight">Gestão de Promoções</h2>
+          <p className="text-text-muted mt-1 font-medium">Crie campanhas e cupons para atrair mais clientes</p>
+        </div>
+        <button onClick={onAdd} className="btn-primary py-3 px-6 text-sm flex items-center gap-2">
+          <Plus size={18} />
+          Nova Promoção
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Promoções Ativas', value: promotions.filter(p => p.active).length, icon: CheckCircle2, color: 'text-primary', bg: 'bg-primary-soft' },
+          { label: 'Desativadas', value: promotions.filter(p => !p.active).length, icon: X, color: 'text-red-600', bg: 'bg-red-50' },
+          { label: 'Total de Campanhas', value: promotions.length, icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
+        ].map((stat, i) => (
+          <div key={i} className="card p-6 flex items-center gap-6 border-none shadow-premium bg-white">
+            <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", stat.bg, stat.color)}>
+              <stat.icon size={24} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-text-muted uppercase tracking-widest">{stat.label}</p>
+              <h4 className="text-2xl font-black text-text-main mt-1">{stat.value}</h4>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Promos Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {promotions.map(promo => (
+          <div key={promo.id} className="card p-0 overflow-hidden border-none shadow-premium bg-white group hover:ring-2 ring-primary/20 transition-all">
+            <div className="h-40 relative overflow-hidden">
+              {promo.image_url ? (
+                <img src={promo.image_url} alt={promo.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+              ) : (
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
+                  <Star size={40} />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                <span className="bg-primary text-white text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider shadow-lg">
+                  {promo.discount_text}
+                </span>
+                <div className="flex items-center gap-2">
+                  <div
+                    onClick={() => onToggle(promo)}
+                    className={cn(
+                      "w-10 h-6 rounded-full relative transition-colors cursor-pointer",
+                      promo.active ? "bg-primary" : "bg-gray-300"
+                    )}>
+                    <div className={cn(
+                      "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+                      promo.active ? "left-5" : "left-1"
+                    )} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              <h4 className="text-lg font-black text-text-main leading-tight">{promo.title}</h4>
+              <p className="text-xs text-text-muted mt-2 font-medium flex items-center gap-2">
+                <Clock size={12} />
+                {promo.valid_until ? `Válido até ${new Date(promo.valid_until).toLocaleDateString()}` : 'Sem expiração'}
+              </p>
+              <div className="mt-6 flex gap-2">
+                <button onClick={() => onEdit(promo)} className="flex-1 py-2.5 bg-gray-50 text-text-main text-[10px] font-black rounded-xl hover:bg-gray-100 uppercase tracking-widest">Editar</button>
+                <button onClick={() => onDelete(promo.id)} className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+// --- Plan Modal ---
+const PlanModal = ({ 
+  plan, 
+  onClose, 
+  onSave 
+}: { 
+  plan: Plan | null, 
+  onClose: () => void, 
+  onSave: (data: Partial<Plan>) => void 
+}) => {
+  const [formData, setFormData] = useState({
+    name: plan?.name || '',
+    price: plan?.price || 0,
+    max_products: plan?.max_products || 0,
+    features: plan?.features ? { ...plan.features } : {
+      marketing_tags: false,
+      custom_colors: false,
+      online_payment: false,
+      ai_assistant: false,
+      advanced_reports: false,
+      promotions: false,
+      couriers_management: false,
+      custom_domain: false,
+      multi_user: false
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+      >
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <h3 className="text-xl font-black text-text-main">
+            {plan ? `Editar Plano: ${plan.name}` : 'Criar Novo Plano'}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-black uppercase text-text-muted tracking-widest">Nome do Plano</label>
+              <input 
+                value={formData.name}
+                onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className="input" 
+                required 
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-text-muted tracking-widest">Preço Mensal</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={formData.price}
+                  onChange={e => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
+                  className="input" 
+                  required 
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-text-muted tracking-widest">Limite de Produtos</label>
+                <input 
+                  type="number"
+                  value={formData.max_products}
+                  onChange={e => setFormData(prev => ({ ...prev, max_products: parseInt(e.target.value) }))}
+                  className="input" 
+                  required 
+                />
+                <p className="text-[10px] text-text-muted italic">* 0 para ilimitado</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-black uppercase text-text-muted tracking-widest">Funcionalidades</label>
+              
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.marketing_tags}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, marketing_tags: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Marketing Tags</p>
+                  <p className="text-[10px] text-text-muted">Pixels de FB, Google e TikTok</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.custom_colors}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, custom_colors: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Cores Customizadas</p>
+                  <p className="text-[10px] text-text-muted">Personalização visual do menu</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.online_payment}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, online_payment: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Pagamento Online</p>
+                  <p className="text-[10px] text-text-muted">Mercado Pago e PagSeguro</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.ai_assistant}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, ai_assistant: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Assistente de IA</p>
+                  <p className="text-[10px] text-text-muted">Chatbot Gemini para pedidos</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.advanced_reports}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, advanced_reports: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Relatórios Avançados</p>
+                  <p className="text-[10px] text-text-muted">Análise de dados e vendas</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.promotions}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, promotions: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Banners & Promoções</p>
+                  <p className="text-[10px] text-text-muted">Gestão de ofertas especiais</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.couriers_management}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, couriers_management: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Gestão de Entregadores</p>
+                  <p className="text-[10px] text-text-muted">Controle de entregas e motoboys</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.custom_domain}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, custom_domain: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Domínio Customizado</p>
+                  <p className="text-[10px] text-text-muted">Use seu próprio link (ex: delivery.seusite.com)</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={formData.features.multi_user}
+                  onChange={e => setFormData(prev => ({ 
+                    ...prev, 
+                    features: { ...prev.features, multi_user: e.target.checked } 
+                  }))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="text-sm font-bold">Múltiplos Usuários</p>
+                  <p className="text-[10px] text-text-muted">Acesso para gerente, caixa e atendente</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-text-main font-bold rounded-xl hover:bg-gray-200 transition-all">Cancelar</button>
+            <button type="submit" className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Salvar Alterações</button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
+// --- Super Admin View ---
+const SuperAdminView = ({ 
+  restaurants, 
+  stats, 
+  plans,
+  onToggleStatus, 
+  onLogout,
+  onUpdatePlan,
+  onUpdatePlanDetails,
+  onCreatePlan
+}: { 
+  restaurants: Restaurant[], 
+  stats: any, 
+  plans: Plan[],
+  onToggleStatus: (id: number, active: boolean) => void,
+  onLogout: () => void,
+  onUpdatePlan: (restaurantId: number, planId: number) => void,
+  onUpdatePlanDetails: (planId: number, data: Partial<Plan>) => void,
+  onCreatePlan: (data: Partial<Plan>) => void
+}) => {
+  const [activeTab, setActiveTab] = useState<'workspaces' | 'plans' | 'settings'>('workspaces');
+  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
+  const [showCreatePlan, setShowCreatePlan] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col gap-8">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
+            <LayoutDashboard size={20} />
+          </div>
+          <span className="font-black text-xl tracking-tighter">Super<span className="text-primary italic">Admin</span></span>
+        </div>
+        
+        <nav className="flex-1 space-y-2">
+          <SidebarItem icon={Users} label="Workspaces" active={activeTab === 'workspaces'} onClick={() => setActiveTab('workspaces')} />
+          <SidebarItem icon={BarChart3} label="Planos SaaS" active={activeTab === 'plans'} onClick={() => setActiveTab('plans')} />
+          <SidebarItem icon={Settings} label="Configurações" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+        </nav>
+
+        <button onClick={onLogout} className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-all w-full">
+          <LogOut size={20} />
+          <span className="font-medium">Sair</span>
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <div className="flex justify-between items-end">
+            <div>
+              <h1 className="text-3xl font-black text-text-main">Gestão Global</h1>
+              <p className="text-text-muted mt-1 font-medium">Controle todos os workspaces e inquilinos da plataforma</p>
+            </div>
+          </div>
+
+          {activeTab === 'workspaces' && (
+            <>
+              {/* Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-6">
+                  <div className="w-14 h-14 bg-primary-soft text-primary rounded-2xl flex items-center justify-center">
+                    <LayoutDashboard size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Workspaces</p>
+                    <h4 className="text-2xl font-black text-text-main mt-1">{stats?.totalRestaurants || 0}</h4>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-6">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                    <ShoppingBag size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Pedidos Globais</p>
+                    <h4 className="text-2xl font-black text-text-main mt-1">{stats?.totalOrders || 0}</h4>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex items-center gap-6">
+                  <div className="w-14 h-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+                    <CreditCard size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-text-muted uppercase tracking-widest">Faturamento</p>
+                    <h4 className="text-2xl font-black text-text-main mt-1">{formatCurrency(stats?.totalRevenue || 0)}</h4>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workspace List */}
+              <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                  <h3 className="font-black text-text-main">Lista de Workspaces</h3>
+                  <div className="relative">
+                    <Search size={18} className="absolute left-3 top-1/2 -track-y-1/2 text-text-muted" />
+                    <input placeholder="Buscar workspace..." className="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 ring-primary/20" />
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-gray-50/50 text-xs font-black uppercase tracking-widest text-text-muted border-b border-gray-100">
+                        <th className="px-6 py-4">Workspace</th>
+                        <th className="px-6 py-4">Plano Atual</th>
+                        <th className="px-6 py-4">Criado em</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 text-right">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {restaurants.map(res => (
+                        <tr key={res.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-primary font-black uppercase">
+                                {res.name.substring(0, 2)}
+                              </div>
+                              <div>
+                                <p className="font-bold text-text-main">{res.name}</p>
+                                <p className="text-xs text-text-muted italic">/{res.slug}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <select 
+                              defaultValue={res.plan_id} 
+                              onChange={(e) => onUpdatePlan(res.id, parseInt(e.target.value))}
+                              className="text-xs font-bold p-2 bg-secondary rounded-lg border-none focus:ring-1 ring-primary/30"
+                            >
+                              <option value="">Sem Plano</option>
+                              {plans.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.max_products} prod.)</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm text-text-muted">{res.created_at ? new Date(res.created_at).toLocaleDateString() : '-'}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              "px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm",
+                              res.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                            )}>
+                              {res.is_active ? 'Ativo' : 'Suspenso'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => onToggleStatus(res.id, !res.is_active)}
+                              className={cn(
+                                "text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all",
+                                res.is_active ? "text-red-500 border-red-100 hover:bg-neutral-50" : "text-green-600 border-green-100 hover:bg-neutral-50"
+                              )}
+                            >
+                              {res.is_active ? 'Suspender' : 'Ativar'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'plans' && (
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-8 space-y-6">
+              <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-black text-text-main">Configuração de Planos SaaS</h3>
+                <button 
+                  onClick={() => setShowCreatePlan(true)}
+                  className="px-6 py-3 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <Plus size={20} />
+                  Novo Plano
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.length > 0 ? (
+                  plans.map(plan => (
+                    <div key={plan.id} className="card p-6 border-none shadow-premium bg-gray-50 flex flex-col gap-6">
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-xl font-black text-primary">{plan.name}</h4>
+                        <button 
+                          onClick={() => setEditingPlan(plan)}
+                          className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 text-text-muted hover:text-primary transition-colors"
+                        >
+                          <Settings size={16} />
+                        </button>
+                      </div>
+                      <p className="text-2xl font-black">{formatCurrency(plan.price)}/mês</p>
+                      <ul className="space-y-2 flex-1">
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          <CheckCircle2 size={16} className="text-green-500" />
+                          Até {plan.max_products === 0 ? 'ilimitados' : plan.max_products} produtos
+                        </li>
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          {plan.features?.marketing_tags ? <CheckCircle2 size={16} className="text-green-500" /> : <X size={16} className="text-red-400" />}
+                          Pixels (FB, Google, TikTok)
+                        </li>
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          {plan.features?.custom_colors ? <CheckCircle2 size={16} className="text-green-500" /> : <X size={16} className="text-red-400" />}
+                          Cores Customizadas
+                        </li>
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          {plan.features?.ai_assistant ? <CheckCircle2 size={16} className="text-green-500" /> : <X size={16} className="text-red-400" />}
+                          Assistente de IA
+                        </li>
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          {plan.features?.promotions ? <CheckCircle2 size={16} className="text-green-500" /> : <X size={16} className="text-red-400" />}
+                          Promoções
+                        </li>
+                        <li className="text-sm font-bold flex items-center gap-2">
+                          {plan.features?.couriers_management ? <CheckCircle2 size={16} className="text-green-500" /> : <X size={16} className="text-red-400" />}
+                          Entregadores
+                        </li>
+                      </ul>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                    <p className="text-text-muted font-bold">Nenhum plano encontrado no sistema.</p>
+                  </div>
+                )}
+              </div>
+
+              {editingPlan && (
+                <PlanModal 
+                  plan={editingPlan}
+                  onClose={() => setEditingPlan(null)}
+                  onSave={(data) => {
+                    onUpdatePlanDetails(editingPlan.id, data);
+                    setEditingPlan(null);
+                  }}
+                />
+              )}
+
+              {showCreatePlan && (
+                <PlanModal 
+                  plan={null}
+                  onClose={() => setShowCreatePlan(false)}
+                  onSave={(data) => {
+                    onCreatePlan(data);
+                    setShowCreatePlan(false);
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden p-8">
+              <h3 className="text-2xl font-black text-text-main mb-6">Configurações Globais da Plataforma</h3>
+              <p className="text-text-muted font-medium mb-8">Gerencie limites padrão e integrações nativas para todos os inquilinos.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h4 className="font-bold flex items-center gap-2"><Globe size={18} className="text-primary"/> Domínio & SEO</h4>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-text-muted">Domínio Base</label>
+                    <input className="input" defaultValue="https://deliverypro.com.br" />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <h4 className="font-bold flex items-center gap-2"><Shield size={18} className="text-primary"/> Segurança SaaS</h4>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-text-muted">Limite Padrão de Produtos (Free)</label>
+                    <input className="input" type="number" defaultValue="20" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </main>
+    </div>
+  );
+};
+
 export default function App() {
-  const [view, setView] = useState<'landing' | 'login' | 'register' | 'admin' | 'public' | 'tracking'>('landing');
+  const [view, setView] = useState<'landing' | 'login' | 'register' | 'admin' | 'superadmin' | 'public' | 'tracking'>('landing');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'orders' | 'products' | 'couriers' | 'customers' | 'production' | 'counter' | 'settings'>('dashboard');
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(() => {
+    const saved = localStorage.getItem('restaurant');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'orders' | 'products' | 'couriers' | 'customers' | 'production' | 'counter' | 'settings' | 'promotions' | 'ai'>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [couriers, setCouriers] = useState<Courier[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCourierModal, setShowCourierModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | null>(null);
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [publicData, setPublicData] = useState<any>(null);
   const [dailyOfferProduct, setDailyOfferProduct] = useState<Product | null>(null);
   const [showDailyOffer, setShowDailyOffer] = useState(false);
@@ -1334,17 +2500,65 @@ export default function App() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [showCartDetails, setShowCartDetails] = useState(false);
+  const [publicTab, setPublicTab] = useState<'menu' | 'pedidos' | 'favoritos' | 'perfil'>('menu');
+  const [adminRestaurants, setAdminRestaurants] = useState<Restaurant[]>([]);
+  const [adminStats, setAdminStats] = useState<any>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   const fetchAdminData = async () => {
     if (!token) return;
     try {
-      const [pRes, oRes, sRes, cRes, catRes, custRes] = await Promise.all([
+      // Always fetch restaurant data first to ensure role is up to date
+      const meRes = await fetch('/api/restaurant/me', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (meRes.ok) {
+        const meData = await meRes.json();
+        const freshRole = meData.role?.trim().toLowerCase();
+        const isPlatform = !!meData.isPlatform || freshRole === 'superadmin';
+        
+        // Update both local and storage state
+        const updatedProfile = { ...meData, role: freshRole, isPlatform };
+        setRestaurant(updatedProfile);
+        localStorage.setItem('restaurant', JSON.stringify(updatedProfile));
+        
+        console.log('Sync - Fresh Role:', freshRole, 'isPlatform:', isPlatform);
+        setIsInitialLoad(false);
+
+        if (isPlatform) {
+          setView('superadmin');
+          const [rRes, sRes, pRes] = await Promise.all([
+            fetch('/api/admin/restaurants', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/admin/plans', { headers: { 'Authorization': `Bearer ${token}` } })
+          ]);
+          if (rRes.ok) {
+            const rData = await rRes.json();
+            setAdminRestaurants(rData);
+          }
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            setAdminStats(sData);
+          }
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            setPlans(pData);
+          }
+          setIsInitialLoad(false);
+          return;
+        } else {
+          // ensure view is admin if not superadmin and we have token
+          setView('admin');
+        }
+      }
+      setIsInitialLoad(false); // Ensure splash completion for non-superadmin or if meRes fails
+      // The rest of the fetches for regular admin
+      const [pRes, oRes, sRes, cRes, catRes, custRes, promRes] = await Promise.all([
         fetch('/api/restaurant/products', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/restaurant/orders', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/restaurant/reports/summary', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/restaurant/couriers', { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch('/api/restaurant/categories', { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch('/api/restaurant/customers', { headers: { 'Authorization': `Bearer ${token}` } })
+        fetch('/api/restaurant/customers', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/restaurant/promotions', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       if (pRes.ok) setProducts(await pRes.json());
       if (oRes.ok) setOrders(await oRes.json());
@@ -1352,6 +2566,7 @@ export default function App() {
       if (cRes.ok) setCouriers(await cRes.json());
       if (catRes.ok) setCategories(await catRes.json());
       if (custRes.ok) setCustomers(await custRes.json());
+      if (promRes.ok) setPromotions(await promRes.json());
     } catch (err) {
       console.error('Error fetching admin data', err);
     }
@@ -1359,11 +2574,83 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
+      const currentRole = restaurant?.role?.trim().toLowerCase();
+      const isPlatform = !!restaurant?.isPlatform || currentRole === 'superadmin';
+      
+      // If we are on landing/auth pages, redirect based on role
+      if (view === 'landing' || view === 'login' || view === 'register') {
+        if (isPlatform) {
+          setView('superadmin');
+        } else {
+          setView('admin');
+        }
+      }
+      
+      // If we are on the WRONG dashboard, force switch
+      if (view === 'admin' && isPlatform) {
+        console.warn('Redirecting to SuperAdmin view...');
+        setView('superadmin');
+      }
+
       fetchAdminData();
       const interval = setInterval(fetchAdminData, 30000); // Refresh every 30s
       return () => clearInterval(interval);
     }
   }, [token]);
+
+  // SaaS Expansion: Marketing Tags & Custom Design
+  useEffect(() => {
+    if (view === 'public' && publicData?.restaurant) {
+      const res = publicData.restaurant;
+      
+      // Apply Custom Colors
+      if (res.primary_color) {
+        document.documentElement.style.setProperty('--primary-color', res.primary_color);
+      }
+      if (res.secondary_color) {
+        document.documentElement.style.setProperty('--secondary-color', res.secondary_color);
+      }
+
+      // Inject Google Analytics
+      if (res.google_tag_id) {
+        const script1 = document.createElement('script');
+        script1.async = true;
+        script1.src = `https://www.googletagmanager.com/gtag/js?id=${res.google_tag_id}`;
+        document.head.appendChild(script1);
+
+        const script2 = document.createElement('script');
+        script2.innerHTML = `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${res.google_tag_id}');
+        `;
+        document.head.appendChild(script2);
+      }
+
+      // Inject Facebook Pixel
+      if (res.fb_pixel_id) {
+        const script = document.createElement('script');
+        script.innerHTML = `
+          !function(f,b,e,v,n,t,s)
+          {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+          n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+          n.queue=[];t=b.createElement(e);t.async=!0;
+          t.src=v;s=b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t,s)}(window, document,'script',
+          'https://connect.facebook.net/en_US/fbevents.js');
+          fbq('init', '${res.fb_pixel_id}');
+          fbq('track', 'PageView');
+        `;
+        document.head.appendChild(script);
+      }
+    } else {
+      // Reset colors when not in public view
+      document.documentElement.style.removeProperty('--primary-color');
+      document.documentElement.style.removeProperty('--secondary-color');
+    }
+  }, [view, publicData]);
 
   const handleViewOrder = async (order: Order) => {
     try {
@@ -1381,6 +2668,7 @@ export default function App() {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('restaurant');
     setToken(null);
     setRestaurant(null);
     setView('landing');
@@ -1413,9 +2701,14 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('token', data.token);
+        localStorage.setItem('restaurant', JSON.stringify(data.restaurant));
         setToken(data.token);
         setRestaurant(data.restaurant);
-        setView('admin');
+        if (data.restaurant.role === 'superadmin') {
+          setView('superadmin');
+        } else {
+          setView('admin');
+        }
       } else {
         const data = await res.json();
         setError(data.error || 'Falha no login');
@@ -1459,6 +2752,12 @@ export default function App() {
     const priceStr = form.price.value;
     const price = parseFloat(priceStr);
     const description = form.description.value.trim();
+
+    // Plan Limits Validation
+    if (restaurant?.plan?.max_products && products.length >= restaurant.plan.max_products) {
+      setError(`Seu plano permite apenas ${restaurant.plan.max_products} produtos. Faça o upgrade para adicionar mais!`);
+      return;
+    }
 
     if (!name) {
       setError('O nome do produto é obrigatório.');
@@ -1729,6 +3028,150 @@ export default function App() {
     }
   };
 
+  const handleCreatePromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const form = e.target as any;
+
+    // Process image: file upload takes priority over URL
+    let imageUrl = form.image_url.value;
+    const fileInput = form.image_file;
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      if (!file.type.startsWith('image/')) {
+        setError('O arquivo deve ser uma imagem válida.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError('A imagem deve ter no máximo 10MB.');
+        return;
+      }
+      imageUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const promotionData = {
+      title: form.title.value,
+      discount_text: form.discount_text.value,
+      image_url: imageUrl || null,
+      valid_until: form.valid_until.value || null
+    };
+
+    try {
+      const res = await fetch('/api/restaurant/promotions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(promotionData)
+      });
+      if (res.ok) {
+        setSuccess('Promoção criada com sucesso!');
+        setShowPromotionModal(false);
+        fetchAdminData();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erro ao criar promoção');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
+  const handleUpdatePromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPromotion) return;
+    const form = e.target as any;
+
+    // Process image: file upload takes priority over URL
+    let imageUrl = form.image_url.value;
+    const fileInput = form.image_file;
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      if (!file.type.startsWith('image/')) {
+        setError('O arquivo deve ser uma imagem válida.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setError('A imagem deve ter no máximo 10MB.');
+        return;
+      }
+      imageUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const promotionData = {
+      title: form.title.value,
+      discount_text: form.discount_text.value,
+      image_url: imageUrl || null,
+      valid_until: form.valid_until.value || null,
+      active: selectedPromotion.active
+    };
+
+    try {
+      const res = await fetch(`/api/restaurant/promotions/${selectedPromotion.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(promotionData)
+      });
+      if (res.ok) {
+        setSuccess('Promoção atualizada!');
+        setShowPromotionModal(false);
+        setSelectedPromotion(null);
+        fetchAdminData();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erro ao atualizar promoção');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
+  const handleDeletePromotion = async (id: number) => {
+    if (!confirm('Excluir esta promoção permanentemente?')) return;
+    try {
+      const res = await fetch(`/api/restaurant/promotions/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPromotions(prev => prev.filter(p => p.id !== id));
+        setSuccess('Promoção excluída');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
+  const handleTogglePromotion = async (promo: Promotion) => {
+    const newStatus = !promo.active;
+    try {
+      const res = await fetch(`/api/restaurant/promotions/${promo.id}/toggle`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ active: newStatus })
+      });
+      if (res.ok) {
+        setPromotions(prev => prev.map(p => p.id === promo.id ? { ...p, active: newStatus } : p));
+      }
+    } catch (err) {
+      setError('Erro ao alterar status');
+    }
+  };
+
   useEffect(() => {
     if (token && view === 'admin') {
       const fetchData = async () => {
@@ -1852,65 +3295,179 @@ export default function App() {
     }
   };
 
+  const handleDeleteOrder = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.')) return;
+    try {
+      const res = await fetch(`/api/restaurant/orders/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setOrders(prev => prev.filter(o => o.id !== id));
+        setSuccess('Pedido excluído com sucesso!');
+        fetchAdminData(); // Refresh summary and stats
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Erro ao excluir pedido');
+      }
+    } catch (err) {
+      setError('Erro de conexão');
+    }
+  };
+
   // --- Render Helpers ---
+
+  // Safety Splash Screen
+  if (token && isInitialLoad) {
+    return (
+      <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-8 gap-6">
+        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <p className="text-text-muted font-bold animate-pulse">Iniciando Portal Pro...</p>
+      </div>
+    );
+  }
+
+  // CRITICAL: Super Admin role has absolute priority over view state
+  const isSuperAdmin = token && (restaurant?.isPlatform || restaurant?.role?.trim().toLowerCase() === 'superadmin');
+  
+  if (isSuperAdmin) {
+    return (
+      <SuperAdminView
+        restaurants={adminRestaurants}
+        stats={adminStats}
+        plans={plans}
+        onLogout={logout}
+        onUpdatePlan={async (restaurantId, planId) => {
+          try {
+            const res = await fetch(`/api/admin/restaurants/${restaurantId}/plan`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ plan_id: planId })
+            });
+            if (res.ok) {
+              setAdminRestaurants(prev => prev.map(r => r.id === restaurantId ? { ...r, plan_id: planId } : r));
+              setSuccess('Plano atualizado com sucesso');
+            }
+          } catch (err) {
+            setError('Erro ao atualizar plano');
+          }
+        }}
+        onUpdatePlanDetails={async (planId, data) => {
+          try {
+            const res = await fetch(`/api/admin/plans/${planId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(data)
+            });
+            if (res.ok) {
+              setPlans(prev => prev.map(p => p.id === planId ? { ...p, ...data as any } : p));
+              setSuccess('Configuração do plano salva com sucesso!');
+            }
+          } catch (err) {
+            setError('Erro ao configurar plano');
+          }
+        }}
+        onCreatePlan={async (data) => {
+          try {
+            const res = await fetch('/api/admin/plans', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(data)
+            });
+            if (res.ok) {
+              const newPlan = await res.json();
+              setPlans(prev => [...prev, newPlan]);
+              setSuccess('Plano criado com sucesso!');
+            }
+          } catch (err) {
+            setError('Erro ao criar plano');
+          }
+        }}
+        onToggleStatus={async (id, is_active) => {
+          try {
+            const res = await fetch(`/api/admin/restaurants/${id}/status`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ is_active })
+            });
+            if (res.ok) {
+              setAdminRestaurants(prev => prev.map(r => r.id === id ? { ...r, is_active } : r));
+              setSuccess(`Workspace ${is_active ? 'ativado' : 'suspenso'} com sucesso`);
+            }
+          } catch (err) {
+            setError('Erro ao alterar status do workspace');
+          }
+        }}
+      />
+    );
+  }
 
   if (view === 'landing') {
     return (
-      <div className="min-h-screen bg-secondary flex items-center justify-center p-6 font-sans selection:bg-primary/10">
-        <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
-
+      <div className="min-h-screen bg-[#FDFDFD] flex flex-col items-center justify-center p-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-lg space-y-16 py-12"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-lg space-y-20 text-center"
         >
-          {/* Header Section */}
-          <div className="space-y-8 text-center">
-            <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-primary/20">
-              <Truck size={40} className="text-white" />
+          <div className="space-y-6">
+            <div className="w-24 h-24 bg-primary rounded-[2.5rem] flex items-center justify-center mx-auto shadow-2xl shadow-primary/20 rotate-3 animate-pulse">
+              <Truck size={48} className="text-white" />
             </div>
-            <div className="space-y-4">
-              <h1 className="text-5xl font-black tracking-tight text-text-main">
-                Delivery<span className="text-accent italic">Pro</span>
+            <div className="space-y-2">
+              <h1 className="text-6xl font-black tracking-tighter text-text-main">
+                Delivery<span className="text-primary italic">Pro</span>
               </h1>
-              <p className="text-text-muted text-lg font-medium max-w-sm mx-auto leading-relaxed">
-                Gerencie seu delivery com elegância, simplicidade e inteligência.
+              <p className="text-text-muted text-xl font-medium max-w-sm mx-auto">
+                A evolução da sua gestão está apenas a um clique.
               </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="space-y-4">
             <button
               onClick={() => setView('register')}
-              className="btn-primary w-full shadow-2xl shadow-primary/5 active:scale-[0.98] transition-all"
+              className="w-full py-6 bg-primary text-white text-xl font-black rounded-[2rem] shadow-2xl shadow-primary/30 hover:shadow-primary/40 active:scale-95 transition-all"
             >
-              Começar Agora
+              Criar Painel Grátis
             </button>
             <button
               onClick={() => setView('login')}
-              className="btn-secondary w-full active:scale-[0.98] transition-all"
+              className="w-full py-6 bg-transparent text-text-main text-lg font-black rounded-[2rem] border-2 border-gray-100 hover:bg-gray-50 active:scale-95 transition-all flex items-center justify-center gap-3"
             >
-              Painel Administrativo
+              <LayoutDashboard size={20} />
+              Acessar Painel
             </button>
           </div>
 
-          {/* Public Access Section */}
-          <div className="pt-12 border-t border-border space-y-8">
-            <div className="space-y-2 text-center">
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted/60">Acesso Rápido</span>
-            </div>
-            <div className="relative group max-w-xs mx-auto">
+          <div className="pt-12 border-t border-gray-50 flex flex-col items-center gap-8">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-text-muted/40">Portal do Cliente</p>
+            <div className="w-full max-w-xs relative">
               <input
-                placeholder="slug-do-restaurante"
-                className="input-minimal text-center text-lg font-bold placeholder:font-medium"
+                placeholder="slug-do-seu-restaurante"
+                className="w-full py-4 bg-transparent border-b-2 border-gray-100 text-center text-xl font-black focus:outline-none focus:border-primary transition-all placeholder:text-gray-100 placeholder:font-black"
                 onKeyDown={(e) => e.key === 'Enter' && handleViewPublic((e.target as HTMLInputElement).value)}
               />
-              <div className="flex justify-center mt-6">
-                <button onClick={() => setView('tracking')} className="text-xs font-bold text-text-muted hover:text-primary transition-all flex items-center gap-2">
-                  <Clock size={14} /> Acompanhar Pedido
-                </button>
-              </div>
+              <button
+                onClick={() => setView('tracking')}
+                className="mt-8 mx-auto text-xs font-black text-text-muted/60 hover:text-primary tracking-widest uppercase flex items-center gap-2 transition-all"
+              >
+                <Clock size={14} /> Rastrear meu Pedido
+              </button>
             </div>
           </div>
         </motion.div>
@@ -1920,81 +3477,74 @@ export default function App() {
 
   if (view === 'login' || view === 'register') {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 font-sans">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 font-sans">
         <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-sm space-y-12"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="w-full max-w-md space-y-16"
         >
           <button
             onClick={() => setView('landing')}
-            className="text-text-muted hover:text-primary flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition-all group"
+            className="group flex items-center gap-3 text-text-muted/40 hover:text-primary transition-all"
           >
-            <X size={14} className="group-hover:rotate-90 transition-transform" /> Voltar
+            <div className="w-10 h-10 rounded-full border border-gray-50 flex items-center justify-center group-hover:border-primary/20">
+              <ArrowLeft size={18} />
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest">Início</span>
           </button>
 
           <div className="space-y-4">
-            <h2 className="text-5xl font-black text-text-main tracking-tight">
-              {view === 'login' ? 'Olá.' : 'Olá.'}
+            <h2 className="text-7xl font-black text-text-main tracking-tighter leading-none">
+              {view === 'login' ? 'Olá.' : 'Novo.'}
             </h2>
-            <p className="text-text-muted text-lg font-medium">
-              {view === 'login' ? 'Entre para gerenciar seu negócio.' : 'Comece sua jornada digital hoje.'}
+            <p className="text-text-muted text-xl font-medium">
+              {view === 'login' ? 'O painel espera por você.' : 'Transforme seu negócio hoje.'}
             </p>
           </div>
 
-          <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-8">
-            <div className="space-y-6">
+          <form onSubmit={view === 'login' ? handleLogin : handleRegister} className="space-y-12">
+            <div className="space-y-8">
               {view === 'register' && (
-                <input
-                  name="name"
-                  required
-                  className="input-minimal"
-                  placeholder="Nome do seu restaurante"
-                />
-              )}
-              {view === 'register' && (
-                <div className="relative group">
-                  <input
-                    name="slug"
-                    required
-                    className="input-minimal pr-20"
-                    placeholder="slug-da-loja"
-                  />
-                  <span className="absolute right-0 bottom-4 text-[10px] font-black text-text-muted/30 uppercase tracking-tighter">.deliverypro.com</span>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Restaurante</label>
+                  <input name="name" required className="input-minimal text-lg h-14" placeholder="Nome Fantasia" />
                 </div>
               )}
-              <input
-                name="email"
-                type="email"
-                required
-                className="input-minimal"
-                placeholder="E-mail profissional"
-              />
-              <input
-                name="password"
-                type="password"
-                required
-                className="input-minimal"
-                placeholder="Sua senha secreta"
-              />
+              {view === 'register' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Endereço Web</label>
+                  <div className="relative">
+                    <input name="slug" required className="input-minimal text-lg h-14 pr-32" placeholder="nome-do-negocio" />
+                    <span className="absolute right-0 bottom-4 text-[10px] font-black text-text-muted/20 uppercase">.deliverypro.com</span>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">E-mail</label>
+                <input name="email" type="email" required className="input-minimal text-lg h-14" placeholder="exemplo@gmail.com" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest ml-1">Senha</label>
+                <input name="password" type="password" required className="input-minimal text-lg h-14" placeholder="••••••••" />
+              </div>
             </div>
 
-            <button type="submit" className="btn-primary w-full shadow-2xl shadow-primary/5 py-5 text-lg">
-              {view === 'login' ? 'Entrar' : 'Cadastrar'}
+            <button type="submit" className="w-full py-6 bg-primary text-white text-xl font-black rounded-3xl shadow-2xl shadow-primary/30 active:scale-95 transition-all">
+              {view === 'login' ? 'Entrar no Painel' : 'Criar minha Conta'}
             </button>
           </form>
 
-          <div className="pt-8 border-t border-border flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-4 pt-4">
             <p className="text-sm font-medium text-text-muted">
-              {view === 'login' ? 'Ainda não é DeliveryPro?' : 'Já possui acesso?'}
+              {view === 'login' ? 'Ainda não tem acesso?' : 'Já possui uma conta?'}
             </p>
             <button
               onClick={() => setView(view === 'login' ? 'register' : 'login')}
-              className="text-primary font-black text-xs uppercase tracking-widest hover:tracking-[0.2em] transition-all"
+              className="text-primary font-black text-xs uppercase tracking-[0.3em] hover:tracking-[0.5em] transition-all"
             >
-              {view === 'login' ? 'Criar minha conta' : 'Fazer Login'}
+              {view === 'login' ? 'Fazer Cadastro' : 'Fazer Login'}
             </button>
           </div>
         </motion.div>
@@ -2016,6 +3566,15 @@ export default function App() {
           isOpen={showCourierModal}
           onClose={() => setShowCourierModal(false)}
           onSubmit={handleCreateCourier}
+        />
+        <PromotionModal
+          isOpen={showPromotionModal}
+          onClose={() => {
+            setShowPromotionModal(false);
+            setSelectedPromotion(null);
+          }}
+          onSubmit={selectedPromotion ? handleUpdatePromotion : handleCreatePromotion}
+          promotion={selectedPromotion}
         />
         <OrderDetailModal
           order={selectedOrder}
@@ -2041,6 +3600,8 @@ export default function App() {
             <SidebarItem icon={Clock} label="Produção" active={adminTab === 'production'} onClick={() => setAdminTab('production')} />
             <SidebarItem icon={Utensils} label="Cardápio" active={adminTab === 'products'} onClick={() => setAdminTab('products')} />
             <SidebarItem icon={Truck} label="Entregadores" active={adminTab === 'couriers'} onClick={() => setAdminTab('couriers')} />
+            <SidebarItem icon={Star} label="Promoções" active={adminTab === 'promotions'} onClick={() => setAdminTab('promotions')} />
+            <SidebarItem icon={Brain} label="Assistente IA" active={adminTab === 'ai'} onClick={() => setAdminTab('ai')} />
             <SidebarItem icon={Users} label="Clientes" active={adminTab === 'customers'} onClick={() => setAdminTab('customers')} />
             <SidebarItem icon={Settings} label="Configurações" active={adminTab === 'settings'} onClick={() => setAdminTab('settings')} />
             <div className="pt-4 border-t border-gray-100 mt-4">
@@ -2071,14 +3632,14 @@ export default function App() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {adminTab === 'dashboard' && <DashboardView summary={summary} />}
+              {adminTab === 'dashboard' && <DashboardView summary={summary} showAdvanced={!!restaurant?.plan?.features?.advanced_reports} />}
               {adminTab === 'products' && <ProductsView products={products} onAdd={() => setShowProductModal(true)} onViewOnline={() => {
                 if (restaurant) {
                   handleViewPublic(restaurant.slug);
                 }
               }} onDelete={handleDeleteProduct} />}
-              {adminTab === 'orders' && <OrdersView orders={orders} onUpdateStatus={updateOrderStatus} onViewOrder={handleViewOrder} />}
-              {adminTab === 'counter' && <CounterOrderView products={products} customers={customers} onOrderCreated={fetchAdminData} token={token} />}
+              {adminTab === 'orders' && <OrdersView orders={orders} onUpdateStatus={updateOrderStatus} onViewOrder={handleViewOrder} onDeleteOrder={handleDeleteOrder} />}
+              {adminTab === 'counter' && <CounterOrderView products={products} customers={customers} promotions={promotions} onOrderCreated={fetchAdminData} token={token} />}
               {adminTab === 'customers' && (
                 <CustomersView
                   customers={customers}
@@ -2088,65 +3649,145 @@ export default function App() {
                 />
               )}
               {adminTab === 'production' && <ProductionView orders={orders} onUpdateStatus={updateOrderStatus} onViewOrder={handleViewOrder} couriers={couriers} token={token} />}
-              {adminTab === 'settings' && <SettingsView restaurant={restaurant} onUpdate={fetchAdminData} token={token} setError={setError} setSuccess={setSuccess} />}
+              {adminTab === 'settings' && (
+                <SettingsView 
+                  restaurant={restaurant} 
+                  onUpdate={fetchAdminData} 
+                  token={token} 
+                  setError={setError} 
+                  setSuccess={setSuccess}
+                  setAdminTab={setAdminTab}
+                />
+              )}
+              {adminTab === 'promotions' && (
+                <FeatureGuard
+                  enabled={!!restaurant?.plan?.features?.promotions}
+                  title="Gestão de Promoções"
+                  description="Crie banners e ofertas irresistíveis para aumentar suas vendas."
+                  onUpgrade={() => setAdminTab('dashboard')}
+                >
+                  <PromotionsView
+                    promotions={promotions}
+                    onAdd={() => {
+                      setSelectedPromotion(null);
+                      setShowPromotionModal(true);
+                    }}
+                    onEdit={(promo) => {
+                      setSelectedPromotion(promo);
+                      setShowPromotionModal(true);
+                    }}
+                    onDelete={handleDeletePromotion}
+                    onToggle={handleTogglePromotion}
+                  />
+                </FeatureGuard>
+              )}
               {adminTab === 'couriers' && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold">Entregadores</h2>
-                    <button onClick={() => setShowCourierModal(true)} className="btn-primary flex items-center gap-2">
-                      <Plus size={18} /> Novo Entregador
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {couriers.map(c => (
-                      <div key={c.id} className="card flex gap-4 items-start relative group">
-                        <button
-                          onClick={() => handleDeleteCourier(c.id)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <div className="w-16 h-16 bg-gray-100 rounded-full overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                          {c.photo_url ? (
-                            <img src={c.photo_url} alt={c.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-200">
-                              <Truck size={24} />
-                            </div>
-                          )}
+                <FeatureGuard
+                  enabled={!!restaurant?.plan?.features?.couriers_management}
+                  title="Gestão de Entregadores"
+                  description="Controle sua frota própria, motoboys e rotas de entrega."
+                  onUpgrade={() => setAdminTab('dashboard')}
+                >
+                  <div className="space-y-8 animate-in fade-in duration-500">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h2 className="text-3xl font-black tracking-tight text-text-main">Painel dos Motoboys</h2>
+                        <p className="text-text-muted mt-1 font-medium">Gestão de entregas e motoristas ativos</p>
+                      </div>
+                      <button onClick={() => setShowCourierModal(true)} className="btn-primary py-3 px-6 text-sm flex items-center gap-2">
+                        <Plus size={18} />
+                        Novo Entregador
+                      </button>
+                    </div>
+
+                  {/* Courier Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[
+                      { label: 'Motoboys Ativos', value: couriers.filter(c => c.active).length, icon: UserPlus, color: 'text-primary', bg: 'bg-primary-soft' },
+                      { label: 'Entregas em Rota', value: orders.filter(o => o.status === 'delivering').length, icon: Truck, color: 'text-blue-600', bg: 'bg-blue-50' },
+                      { label: 'Média de Tempo', value: '28 min', icon: Clock, color: 'text-green-600', bg: 'bg-green-50' },
+                    ].map((stat, i) => (
+                      <div key={i} className="card p-6 flex items-center gap-6 border-none shadow-premium bg-white">
+                        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center", stat.bg, stat.color)}>
+                          <stat.icon size={24} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <h3 className="font-bold truncate">{c.name}</h3>
-                            <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide", c.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500")}>
-                              {c.active ? 'Ativo' : 'Inativo'}
-                            </span>
-                          </div>
-                          <p className="text-sm text-text-muted flex items-center gap-1 mt-1">
-                            <span className="w-4 h-4 flex items-center justify-center bg-gray-100 rounded-full text-[10px]">📞</span> {c.phone}
-                          </p>
-                          {c.vehicle_type && (
-                            <p className="text-xs font-medium mt-2 px-2 py-1 bg-gray-50 rounded-lg inline-block border border-gray-100">
-                              {c.vehicle_type === 'moto' && '🏍️ Moto'}
-                              {c.vehicle_type === 'carro' && '🚗 Carro'}
-                              {c.vehicle_type === 'bicicleta' && '🚲 Bike'}
-                              {c.vehicle_type === 'ape' && '🚶 A Pé'}
-                              {(c.vehicle_type === 'moto' || c.vehicle_type === 'carro') && c.vehicle_plate && (
-                                <span className="ml-1 text-text-muted border-l border-gray-300 pl-1">{c.vehicle_plate}</span>
-                              )}
-                            </p>
-                          )}
+                        <div>
+                          <p className="text-xs font-bold text-text-muted uppercase tracking-widest">{stat.label}</p>
+                          <h4 className="text-2xl font-black text-text-main mt-1">{stat.value}</h4>
                         </div>
                       </div>
                     ))}
-                    {couriers.length === 0 && (
-                      <div className="col-span-full text-center py-12 text-text-muted bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                        <Truck size={48} className="mx-auto mb-4 opacity-20" />
-                        <p>Nenhum entregador cadastrado.</p>
-                      </div>
-                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {couriers.map(c => {
+                      const isBusy = orders.some(o => o.courier_id === c.id && o.status === 'delivering');
+                      return (
+                        <div key={c.id} className="card p-0 overflow-hidden border-none shadow-premium bg-white group hover:ring-2 ring-primary/20 transition-all">
+                          <div className="p-6 space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-md relative">
+                                {c.photo_url ? (
+                                  <img src={c.photo_url} alt={c.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                                    <User size={32} />
+                                  </div>
+                                )}
+                                <div className={cn(
+                                  "absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white",
+                                  c.active ? (isBusy ? "bg-blue-500" : "bg-green-500") : "bg-gray-400"
+                                )} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-lg font-black text-text-main truncate">{c.name}</h3>
+                                <p className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                                  {isBusy ? 'Em Rota' : (c.active ? 'Disponível' : 'Off-line')}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+                                <span>Classificação</span>
+                                <div className="flex items-center gap-1 text-primary">
+                                  <Star size={12} fill="currentColor" />
+                                  <span>4.9</span>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
+                                <span>Pedido Atual</span>
+                                <span className="text-text-main">#{isBusy ? '124' : '—'}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              {isBusy ? (
+                                <button className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black rounded-xl uppercase tracking-widest shadow-lg shadow-blue-200">Acompanhar</button>
+                              ) : (
+                                <button className="flex-1 py-3 bg-gray-100 text-text-main text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-gray-200">Histórico</button>
+                              )}
+                              <button onClick={() => handleDeleteCourier(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors">
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+              </FeatureGuard>
+              )}
+              {adminTab === 'ai' && (
+                <FeatureGuard
+                  enabled={!!restaurant?.plan?.features?.ai_assistant}
+                  title="Assistente de Inteligência Artificial"
+                  description="Automatize o atendimento e os pedidos com o poder do Google Gemini."
+                  onUpgrade={() => setAdminTab('dashboard')}
+                >
+                  <AIView restaurant={restaurant} token={token} />
+                </FeatureGuard>
               )}
             </motion.div>
           </AnimatePresence>
@@ -2181,7 +3822,15 @@ export default function App() {
     });
 
     return (
-      <div className="min-h-screen bg-white pb-32">
+      <div className="min-h-screen bg-white pb-32" style={{ backgroundColor: publicData.restaurant?.secondary_color || '#FFFFFF' }}>
+        <style>
+          {`
+            :root {
+              --primary: ${publicData.restaurant?.primary_color || '#FF4C29'};
+              --primary-soft: ${publicData.restaurant?.primary_color ? publicData.restaurant?.primary_color + '20' : '#FF4C2920'};
+            }
+          `}
+        </style>
         <Toast error={error} success={success} setError={setError} setSuccess={setSuccess} />
 
         <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between">
@@ -2194,6 +3843,8 @@ export default function App() {
           </button>
         </header>
 
+        {publicTab === 'menu' && (
+          <>
         <div className="sticky top-[73px] z-30 bg-white/80 backdrop-blur-md border-b border-border overflow-x-auto no-scrollbar py-2">
           <div className="flex px-6 gap-8 min-w-max">
             {categoriesList.map((cat) => (
@@ -2219,6 +3870,48 @@ export default function App() {
         </div>
 
         <main className="max-w-5xl mx-auto px-6 py-8 space-y-12">
+          {/* Active Promotions Banner */}
+          {publicData.promotions && publicData.promotions.length > 0 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-black text-text-main tracking-tight flex items-center gap-2">
+                <Star size={20} className="text-primary" /> Promoções
+              </h2>
+              <div className="flex gap-6 overflow-x-auto no-scrollbar -mx-6 px-6 pb-4">
+                {publicData.promotions.map((promo: any) => (
+                  <div
+                    key={promo.id}
+                    className="w-72 flex-shrink-0 bg-white border border-border rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl transition-all group"
+                  >
+                    <div className="h-40 overflow-hidden bg-secondary relative">
+                      {promo.image_url ? (
+                        <img src={promo.image_url} alt={promo.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                          <Star size={48} className="text-primary/30" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                      <div className="absolute bottom-4 left-4">
+                        <span className="bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
+                          {promo.discount_text}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-6 space-y-2">
+                      <h3 className="font-black text-text-main text-lg leading-tight">{promo.title}</h3>
+                      {promo.valid_until && (
+                        <p className="text-xs text-text-muted font-medium flex items-center gap-1">
+                          <Clock size={12} />
+                          Válido até {new Date(promo.valid_until).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Daily Offers / Highlights */}
           <div className="space-y-6">
             <h2 className="text-xl font-black text-text-main tracking-tight">Destaques da Semana</h2>
@@ -2282,6 +3975,93 @@ export default function App() {
             </div>
           ))}
         </main>
+          </>
+        )}
+
+        {/* Pedidos Tab */}
+        {publicTab === 'pedidos' && (
+          <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+            <h2 className="text-xl font-black text-text-main">Meus Pedidos</h2>
+            <div className="bg-white border border-border rounded-2xl p-6 space-y-4">
+              <p className="text-text-muted text-sm">Acompanhe o status do seu pedido informando o número:</p>
+              <form onSubmit={(e) => { e.preventDefault(); const form = e.target as any; const id = form.order_id.value; if (id) { fetch(`/api/public/orders/${id}`).then(r => r.ok ? r.json() : null).then(data => { if (data) { setTrackingOrder(data); setView('tracking'); } else { setError('Pedido não encontrado'); } }); } }} className="flex gap-3">
+                <input name="order_id" type="number" placeholder="Número do pedido" className="input flex-1" required />
+                <button type="submit" className="btn-primary px-6">Rastrear</button>
+              </form>
+            </div>
+            <div className="text-center py-8 space-y-3">
+              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto">
+                <ShoppingBag size={28} className="text-text-muted" />
+              </div>
+              <p className="text-text-muted text-sm">Faça um pedido pelo cardápio e acompanhe aqui!</p>
+            </div>
+          </main>
+        )}
+
+        {/* Favoritos Tab */}
+        {publicTab === 'favoritos' && (
+          <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+            <h2 className="text-xl font-black text-text-main">Favoritos</h2>
+            {publicData.products.filter((p: Product) => p.is_daily_offer).length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {publicData.products.filter((p: Product) => p.is_daily_offer).map((p: Product) => (
+                  <div key={p.id} onClick={() => setSelectedProduct(p)} className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group">
+                    <div className="h-36 bg-secondary overflow-hidden">
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300"><Utensils size={32} /></div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-black text-text-main">{p.name}</h3>
+                      <p className="text-primary font-bold mt-1">{formatCurrency(p.price)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 space-y-3">
+                <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto">
+                  <Heart size={28} className="text-text-muted" />
+                </div>
+                <p className="text-text-muted text-sm">Os destaques do cardápio aparecerão aqui!</p>
+              </div>
+            )}
+          </main>
+        )}
+
+        {/* Perfil Tab */}
+        {publicTab === 'perfil' && publicData.restaurant && (
+          <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+            <h2 className="text-xl font-black text-text-main">Sobre o Restaurante</h2>
+            <div className="bg-white border border-border rounded-2xl p-6 space-y-5">
+              <div className="flex items-center gap-4">
+                {publicData.restaurant.logo_url ? (
+                  <img src={publicData.restaurant.logo_url} alt={publicData.restaurant.name} className="w-16 h-16 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary"><Utensils size={28} /></div>
+                )}
+                <div>
+                  <h3 className="text-lg font-black text-text-main">{publicData.restaurant.name}</h3>
+                  {publicData.restaurant.slogan && <p className="text-text-muted text-sm">{publicData.restaurant.slogan}</p>}
+                </div>
+              </div>
+              {publicData.restaurant.address && (
+                <div className="flex items-start gap-3 p-3 bg-secondary rounded-xl">
+                  <MapPin size={18} className="text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-text-main">{publicData.restaurant.address}</p>
+                </div>
+              )}
+              {publicData.restaurant.phone && (
+                <div className="flex items-center gap-3 p-3 bg-secondary rounded-xl">
+                  <User size={18} className="text-primary flex-shrink-0" />
+                  <p className="text-sm text-text-main">{publicData.restaurant.phone}</p>
+                </div>
+              )}
+            </div>
+          </main>
+        )}
 
         <div className="fixed bottom-0 left-0 right-0 z-50">
           {cart.length > 0 && (
@@ -2307,10 +4087,10 @@ export default function App() {
           )}
 
           <nav className="bg-white border-t border-border flex items-center justify-around h-[80px] px-6">
-            <button className="flex flex-col items-center gap-1 text-primary"><Utensils size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Menu</span></button>
-            <button className="flex flex-col items-center gap-1 text-text-muted"><ShoppingBag size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Pedidos</span></button>
-            <button className="flex flex-col items-center gap-1 text-text-muted"><Heart size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Favoritos</span></button>
-            <button className="flex flex-col items-center gap-1 text-text-muted"><User size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Perfil</span></button>
+            <button onClick={() => setPublicTab('menu')} className={`flex flex-col items-center gap-1 ${publicTab === 'menu' ? 'text-primary' : 'text-text-muted'}`}><Utensils size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Menu</span></button>
+            <button onClick={() => setPublicTab('pedidos')} className={`flex flex-col items-center gap-1 ${publicTab === 'pedidos' ? 'text-primary' : 'text-text-muted'}`}><ShoppingBag size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Pedidos</span></button>
+            <button onClick={() => setPublicTab('favoritos')} className={`flex flex-col items-center gap-1 ${publicTab === 'favoritos' ? 'text-primary' : 'text-text-muted'}`}><Heart size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Favoritos</span></button>
+            <button onClick={() => setPublicTab('perfil')} className={`flex flex-col items-center gap-1 ${publicTab === 'perfil' ? 'text-primary' : 'text-text-muted'}`}><User size={24} /><span className="text-[10px] font-black uppercase tracking-widest">Perfil</span></button>
           </nav>
         </div>
 

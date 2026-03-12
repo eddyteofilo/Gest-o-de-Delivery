@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #FF5833;
-  /* Orange Coral Vibrante */
-  --color-primary-soft: #FFF2F0;
-  /* Fundo suave para botões/destaques */
-  --color-accent: #1A1A1A;
-  --color-secondary: #F8F9FA;
+  --color-primary: var(--primary-color, #FF7000);
+  /* Amber Orange vibrante */
+  --color-primary-soft: #FFF4ED;
+  /* Fundo pêssego/amarelo muito suave */
+  --color-accent: #3B82F6;
+  /* Azul para status específicos (Em Preparo) */
+  --color-secondary: var(--secondary-color, #FAFAFA);
+  /* Fundo quase branco neutro */
   --color-surface: #FFFFFF;
   --color-border: #F1F5F9;
-  --color-text-main: #1E293B;
+  --color-text-main: #0F172A;
+  /* Slate 900 para contraste máximo */
   --color-text-muted: #64748B;
-  --color-success: #10B981;
+  --color-success: #22C55E;
+  /* Verde status entregue */
   --color-error: #EF4444;
 
   --font-sans: 'Outfit', 'Inter', ui-sans-serif, system-ui, sans-serif;
@@ -61,9 +65,12 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
 
