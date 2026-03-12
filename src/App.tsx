@@ -1976,7 +1976,7 @@ const PlanModal = ({
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
       >
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h3 className="text-xl font-black text-text-main">
@@ -1987,7 +1987,7 @@ const PlanModal = ({
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form id="plan-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           <div className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs font-black uppercase text-text-muted tracking-widest">Nome do Plano</label>
@@ -2142,7 +2142,7 @@ const PlanModal = ({
               <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
                 <input 
                   type="checkbox"
-                  checked={formData.features.custom_domain}
+                  checked={formData.features.custom_domain || false}
                   onChange={e => setFormData(prev => ({ 
                     ...prev, 
                     features: { ...prev.features, custom_domain: e.target.checked } 
@@ -2158,7 +2158,7 @@ const PlanModal = ({
               <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
                 <input 
                   type="checkbox"
-                  checked={formData.features.multi_user}
+                  checked={formData.features.multi_user || false}
                   onChange={e => setFormData(prev => ({ 
                     ...prev, 
                     features: { ...prev.features, multi_user: e.target.checked } 
@@ -2172,12 +2172,12 @@ const PlanModal = ({
               </label>
             </div>
           </div>
-
-          <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-text-main font-bold rounded-xl hover:bg-gray-200 transition-all">Cancelar</button>
-            <button type="submit" className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Salvar Alterações</button>
-          </div>
         </form>
+
+        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-3 bg-gray-100 text-text-main font-bold rounded-xl hover:bg-gray-200 transition-all">Cancelar</button>
+          <button type="submit" form="plan-form" className="flex-1 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Salvar Alterações</button>
+        </div>
       </motion.div>
     </div>
   );
