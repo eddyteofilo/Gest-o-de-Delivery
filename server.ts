@@ -11,6 +11,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 import { createClient } from '@supabase/supabase-js';
+import { MercadoPagoConfig, Payment } from 'mercadopago';
+import { createPayment, createCheckoutPreference } from './services/mercadopago';
 
 dotenv.config();
 
@@ -146,7 +148,7 @@ async function startServer() {
       const hashedPassword = await bcrypt.hash(password, 10);
       const { data, error } = await supabase
         .from('restaurants')
-        .insert([{ name, email, password: hashedPassword, slug }])
+        .insert([{ name, email, password: hashedPassword, slug, is_active: true }])
         .select('id')
         .single();
 
@@ -155,6 +157,9 @@ async function startServer() {
       res.json({ id: data.id });
     } catch (err: any) {
       console.error('Register error:', err.message);
+      if (err.code === '23505') {
+        return res.status(400).json({ error: 'Este e-mail ou endereço web já está sendo usado por outro restaurante.' });
+      }
       res.status(400).json({ error: err.message });
     }
   });
@@ -283,14 +288,14 @@ async function startServer() {
 
   app.put('/api/restaurant/settings', authenticate, async (req: any, res) => {
     const { 
-      name, slogan, logo_url, mercadopago_token, pagseguro_token, phone, address,
+      name, slogan, logo_url, mercadopago_token, mercadopago_public_key, pagseguro_token, phone, address,
       google_tag_id, fb_pixel_id, tiktok_pixel_id, primary_color, secondary_color 
     } = req.body;
     try {
       const { error } = await supabase
         .from('restaurants')
         .update({ 
-          name, slogan, logo_url, mercadopago_token, pagseguro_token, phone, address,
+          name, slogan, logo_url, mercadopago_token, mercadopago_public_key, pagseguro_token, phone, address,
           google_tag_id, fb_pixel_id, tiktok_pixel_id, primary_color, secondary_color 
         })
         .eq('id', req.user.id);
@@ -497,9 +502,55 @@ async function startServer() {
     }
   });
 
+  app.get('/api/public/orders/:id/verify-payment', async (req, res) => {
+    console.log(`[VERIFY-PAYMENT] Order ID: ${req.params.id}`);
+    try {
+      const { id } = req.params;
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*, restaurants(mercadopago_token)')
+        .eq('id', id)
+        .single();
+
+      if (orderError || !order) {
+        console.error('Verify payment - Order not found:', id);
+        return res.status(404).json({ error: 'Pedido não encontrado' });
+      }
+      
+      if (!order.payment_id) {
+         console.log('Verify payment - No payment_id for order:', id);
+         return res.json(order);
+      }
+
+      const token = (order.restaurants as any)?.mercadopago_token;
+      if (!token) {
+        console.error('Verify payment - No MP token for restaurant');
+        return res.json(order);
+      }
+
+      const client = new MercadoPagoConfig({ accessToken: token });
+      const payment = new Payment(client);
+      const mpOrder = await payment.get({ id: String(order.payment_id) });
+
+      if (mpOrder.status !== order.payment_status) {
+        console.log(`Verify payment - Status changed: ${order.payment_status} -> ${mpOrder.status}`);
+        await supabase
+          .from('orders')
+          .update({ payment_status: mpOrder.status })
+          .eq('id', id);
+        order.payment_status = mpOrder.status;
+      }
+
+      res.json(order);
+    } catch (err: any) {
+      console.error('Verify payment error details:', err);
+      res.status(500).json({ error: err.message || 'Erro interno na verificação' });
+    }
+  });
+
   // --- Order Routes ---
   app.post('/api/public/orders', async (req, res) => {
-    const { restaurant_id, customer_name, customer_phone, customer_address, items } = req.body;
+    const { restaurant_id, customer_name, customer_phone, customer_address, items, payment_method } = req.body;
     const errors = validateFields(req.body, [
       { name: 'restaurant_id' },
       { name: 'customer_name', minLength: 2 },
@@ -523,9 +574,68 @@ async function startServer() {
         total += itemTotal * item.quantity;
       }
 
+      let paymentId = null;
+      let paymentStatus = 'pending';
+      let paymentQrCode = null;
+      let paymentQrCodeBase64 = null;
+      let paymentLink = null;
+
+      if (payment_method === 'pix' || payment_method === 'credit_card') {
+        const { data: restaurant } = await supabase
+          .from('restaurants')
+          .select('mercadopago_token, name')
+          .eq('id', restaurant_id)
+          .single();
+
+        if (restaurant && restaurant.mercadopago_token) {
+          const pseudoOrderId = Date.now().toString();
+          try {
+            if (payment_method === 'pix') {
+              const pix = await createPayment(
+                restaurant.mercadopago_token,
+                total,
+                `Pedido na lanchonete ${restaurant.name}`,
+                'cliente-app@mail.com',
+                pseudoOrderId,
+                'pix'
+              );
+              
+              paymentId = String(pix.id);
+              paymentStatus = pix.status;
+              paymentQrCode = pix.qr_code;
+              paymentQrCodeBase64 = pix.qr_code_base64;
+            } else if (payment_method === 'credit_card') {
+              const pref = await createCheckoutPreference(
+                restaurant.mercadopago_token,
+                total,
+                `Pedido na lanchonete ${restaurant.name}`,
+                pseudoOrderId
+              );
+              paymentId = pref.id;
+              paymentLink = pref.init_point;
+            }
+          } catch (mpError: any) {
+            console.error("Erro no Mercado Pago:", mpError.message);
+            return res.status(400).json({ error: "Erro ao inicializar pagamento: " + mpError.message });
+          }
+        }
+      }
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert([{ restaurant_id, customer_name, customer_phone, customer_address, total }])
+        .insert([{ 
+          restaurant_id, 
+          customer_name, 
+          customer_phone, 
+          customer_address, 
+          total,
+          payment_method,
+          payment_id: paymentId,
+          payment_status: paymentStatus,
+          payment_qr_code: paymentQrCode,
+          payment_qr_code_base64: paymentQrCodeBase64,
+          payment_link: paymentLink
+        }])
         .select()
         .single();
 
@@ -545,10 +655,56 @@ async function startServer() {
 
       if (itemsError) throw itemsError;
 
-      res.json({ orderId: order.id });
+      res.json({ 
+        orderId: order.id,
+        payment_qr_code: paymentQrCode,
+        payment_qr_code_base64: paymentQrCodeBase64,
+        payment_link: paymentLink
+      });
     } catch (err: any) {
       console.error('Error creating order:', err);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+
+  app.post('/api/webhooks/mercadopago', async (req, res) => {
+    const { type, action, data } = req.body;
+    res.status(200).send('OK');
+
+    try {
+      if (type === 'payment' || action === 'payment.updated' || action === 'payment.created') {
+        const paymentId = data?.id;
+        if (!paymentId) return;
+
+        // Buscamos o pedido para saber qual restaurante (token) usar
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, restaurant_id, payment_status, restaurants(mercadopago_token)')
+          .eq('payment_id', String(paymentId))
+          .single();
+
+        if (!order) return;
+
+        const token = (order.restaurants as any)?.mercadopago_token;
+        if (!token) return;
+
+        // Consultamos o status real no MP para evitar fraude
+        const client = new MercadoPagoConfig({ accessToken: token });
+        const payment = new Payment(client);
+        const mpOrder = await payment.get({ id: String(paymentId) });
+
+        if (mpOrder.status === 'approved' && order.payment_status !== 'approved') {
+          await supabase
+            .from('orders')
+            .update({ payment_status: 'approved' })
+            .eq('id', order.id);
+          
+          console.log(`Pedido ${order.id} pago via webhook!`);
+        }
+      }
+    } catch (e) {
+      console.error('Webhook error:', e);
     }
   });
 
@@ -604,10 +760,11 @@ async function startServer() {
   });
 
   app.patch('/api/restaurant/orders/:id/status', authenticate, async (req: any, res) => {
-    const { status, courier_id } = req.body;
+    const { status, courier_id, payment_status } = req.body;
     try {
       const updateData: any = { status };
       if (courier_id !== undefined) updateData.courier_id = courier_id;
+      if (payment_status !== undefined) updateData.payment_status = payment_status;
 
       const { error } = await supabase
         .from('orders')
@@ -647,6 +804,21 @@ async function startServer() {
         .eq('restaurant_id', req.user.id);
       if (error) throw error;
       res.json(couriers);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/restaurant/couriers/:id/orders', authenticate, async (req: any, res) => {
+    try {
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('courier_id', req.params.id)
+        .eq('restaurant_id', req.user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      res.json(orders);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -819,6 +991,7 @@ async function startServer() {
       if (error) throw error;
       res.json(data);
     } catch (err: any) {
+      console.error('Error fetching plans:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
@@ -839,27 +1012,52 @@ async function startServer() {
 
   app.patch('/api/admin/plans/:id', authenticateSuperAdmin, async (req, res) => {
     const { name, price, max_products, features } = req.body;
+    console.log(`Updating plan ${req.params.id}:`, { name, price, max_products, features });
     try {
       const { error } = await supabase
         .from('plans')
         .update({ name, price, max_products, features })
         .eq('id', req.params.id);
       if (error) throw error;
+      console.log('Plan updated successfully');
       res.json({ success: true });
     } catch (err: any) {
+      console.error('Error updating plan:', err.message);
       res.status(500).json({ error: err.message });
     }
   });
 
   app.post('/api/admin/plans', authenticateSuperAdmin, async (req, res) => {
     const { name, price, max_products, features } = req.body;
+    console.log('Creating new plan:', { name, price, max_products, features });
     try {
       const { data, error } = await supabase
         .from('plans')
         .insert([{ name, price, max_products, features }])
         .select();
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error inserting plan:', error);
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        throw new Error('No data returned from insert');
+      }
+      console.log('Plan created successfully:', data[0].id);
       res.status(201).json(data[0]);
+    } catch (err: any) {
+      console.error('Error creating plan:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/admin/plans/:id', authenticateSuperAdmin, async (req, res) => {
+    try {
+      const { error } = await supabase
+        .from('plans')
+        .delete()
+        .eq('id', req.params.id);
+      if (error) throw error;
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -1002,7 +1200,7 @@ async function startServer() {
     try {
       const { data: order, error } = await supabase
         .from('orders')
-        .select('id, status, total, created_at, restaurants(name, phone)')
+        .select('id, status, total, created_at, payment_method, payment_status, payment_qr_code, payment_qr_code_base64, payment_link, restaurants(name, phone)')
         .eq('id', req.params.id)
         .single();
 

@@ -34,8 +34,7 @@ import {
   Shield,
   Brain,
   MessageSquare,
-  BarChart2,
-  ExternalLink
+  BarChart2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, formatCurrency, formatDate, ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from './utils';
@@ -141,45 +140,6 @@ const OrderDetailModal = ({ order, isOpen, onClose, onUpdateStatus, couriers, to
               </div>
             </div>
 
-            {/* Nova Seção de Informação de Pagamento */}
-            <div className="flex flex-wrap gap-4 items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-2 rounded-lg shadow-sm">
-                  <span className="text-xl">
-                    {order.payment_method === 'pix' ? '💠' : 
-                     order.payment_method === 'credit_card' ? '💳' : 
-                     order.payment_method === 'card_on_delivery' ? '📠' : '💵'}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase text-text-muted tracking-wider">Forma de Pagamento</span>
-                  <span className="font-bold text-gray-800">
-                    {order.payment_method === 'pix' ? 'PIX Online' : 
-                     order.payment_method === 'credit_card' ? 'Cartão Online' : 
-                     order.payment_method === 'card_on_delivery' ? 'Cartão na Entrega' : 
-                     order.payment_method === 'cash' ? 'Dinheiro' : 'Não informado'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] font-black uppercase text-text-muted tracking-wider mb-1">Status Financeiro</span>
-                {order.payment_status === 'approved' ? (
-                  <div className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 border border-green-200">
-                    <CheckCircle2 size={14} /> PAGO NO APP
-                  </div>
-                ) : order.payment_method === 'cash' || order.payment_method === 'card_on_delivery' ? (
-                  <div className="bg-orange-100 text-orange-700 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 border border-orange-200">
-                    <Truck size={14} /> RECEBER NA ENTREGA
-                  </div>
-                ) : (
-                  <div className="bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 border border-yellow-200">
-                    <Clock size={14} /> AGUARDANDO PIX/CARTÃO
-                  </div>
-                )}
-              </div>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1">
                 <h4 className="text-xs font-bold uppercase text-text-muted">Cliente</h4>
@@ -234,95 +194,9 @@ const OrderDetailModal = ({ order, isOpen, onClose, onUpdateStatus, couriers, to
             </div>
           </div>
 
-          <div className="p-6 border-t border-gray-100 bg-gray-50 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <span className="text-text-muted font-medium">Total do Pedido</span>
-              <span className="text-2xl font-black text-primary">{formatCurrency(order.total)}</span>
-            </div>
-            
-            {(order.payment_status !== 'approved') && (
-              <button
-                onClick={async () => {
-                   try {
-                     const res = await fetch(`/api/restaurant/orders/${order.id}/status`, {
-                       method: 'PATCH',
-                       headers: {
-                         'Content-Type': 'application/json',
-                         'Authorization': `Bearer ${token}`
-                       },
-                       body: JSON.stringify({ status: order.status, payment_status: 'approved' })
-                     });
-                     if (res.ok) {
-                       onUpdateStatus(order.id, order.status);
-                       // setSuccess('Pagamento confirmado com sucesso!');
-                     }
-                   } catch (err) {
-                     console.error(err);
-                   }
-                }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-green-200 flex items-center justify-center gap-2"
-              >
-                <Check size={20} />
-                Confirmar Recebimento de Pagamento
-              </button>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    )}
-  </AnimatePresence>
-);
-
-const CourierHistoryModal = ({ courier, orders, isOpen, onClose }: { courier: Courier | null, orders: Order[], isOpen: boolean, onClose: () => void }) => (
-  <AnimatePresence>
-    {isOpen && courier && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col"
-        >
-          <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-            <div>
-              <h3 className="font-bold text-xl">Histórico — {courier.name}</h3>
-              <p className="text-sm text-text-muted">{orders.length} pedidos atribuídos</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 bg-white p-2 rounded-full shadow-sm">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="p-6 overflow-y-auto space-y-4">
-            {orders.length === 0 ? (
-              <div className="text-center py-20">
-                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Bike size={32} className="text-gray-300" />
-                 </div>
-                 <p className="text-text-muted font-bold">Nenhum pedido encontrado no histórico deste entregador.</p>
-              </div>
-            ) : (
-              orders.map(order => (
-                <div key={order.id} className="flex justify-between items-center p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-gray-900">Pedido #{order.id}</p>
-                      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider", ORDER_STATUS_COLORS[order.status])}>
-                        {ORDER_STATUS_LABELS[order.status]}
-                      </span>
-                    </div>
-                    <p className="text-xs text-text-muted mt-0.5">{formatDate(order.created_at)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-black text-primary">{formatCurrency(order.total)}</p>
-                    <p className="text-[10px] text-text-muted uppercase font-black">
-                      {order.payment_method === 'pix' ? '💠 PIX' : 
-                       order.payment_method === 'credit_card' ? '💳 Cartão' : 
-                       order.payment_method === 'card_on_delivery' ? '📠 Maquininha' : '💵 Dinheiro'}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+            <span className="text-text-muted font-medium">Total do Pedido</span>
+            <span className="text-2xl font-black text-primary">{formatCurrency(order.total)}</span>
           </div>
         </motion.div>
       </div>
@@ -1250,31 +1124,6 @@ const TrackingView = ({ onBack, initialOrder }: { onBack: () => void, initialOrd
   const [order, setOrder] = useState<any>(initialOrder);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
-
-  useEffect(() => {
-    let interval: any;
-    if (order && order.status !== 'completed' && order.status !== 'cancelled') {
-       interval = setInterval(async () => {
-         if (isPolling) return;
-         setIsPolling(true);
-         try {
-           const res = await fetch(`/api/public/orders/${order.id}`);
-           if (res.ok) {
-             const newData = await res.json();
-             if (JSON.stringify(newData) !== JSON.stringify(order)) {
-               setOrder(newData);
-             }
-           }
-         } catch (err) {
-           console.error('Polling error', err);
-         } finally {
-           setIsPolling(false);
-         }
-       }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [order, isPolling]);
 
   const handleTrack = async () => {
     if (!orderId) return;
@@ -1289,25 +1138,6 @@ const TrackingView = ({ onBack, initialOrder }: { onBack: () => void, initialOrd
       }
     } catch (err) {
       setError('Erro ao buscar pedido');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyPayment = async () => {
-    if (!order) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/public/orders/${order.id}/verify-payment`);
-      if (res.ok) {
-        const updated = await res.json();
-        setOrder(updated);
-        if (updated.payment_status === 'approved') {
-          // Play a sound or show a more prominent success message?
-        }
-      }
-    } catch (err) {
-      console.error('Error verifying payment', err);
     } finally {
       setLoading(false);
     }
@@ -1387,61 +1217,6 @@ const TrackingView = ({ onBack, initialOrder }: { onBack: () => void, initialOrd
                 </div>
               </div>
             </div>
-
-                        {/* Pagamento PIX */}
-            {order.payment_method === 'pix' && order.payment_status === 'pending' && order.payment_qr_code_base64 && (
-              <div className="card bg-white border-2 border-primary p-8 text-center space-y-4">
-                <h3 className="text-xl font-black text-text-main">Pague com PIX</h3>
-                <p className="text-sm text-text-muted">Escaneie o QR Code abaixo no app do seu banco para confirmar o pedido.</p>
-                <img src={`data:image/png;base64,${order.payment_qr_code_base64}`} alt="QR Code PIX" className="w-48 h-48 mx-auto rounded-xl shadow-sm border border-border" />
-                <div className="pt-4 space-y-4">
-                   <div>
-                     <p className="text-xs font-bold text-text-muted mb-2 uppercase tracking-widest">Código Copia e Cola:</p>
-                     <div className="flex bg-secondary p-3 rounded-xl gap-2 items-center">
-                       <p className="text-xs text-text-main truncate flex-1 font-mono">{order.payment_qr_code}</p>
-                       <button onClick={() => { navigator.clipboard.writeText(order.payment_qr_code); alert('Copiado!'); }} className="btn-primary text-xs py-2 px-4 shadow-none">Copiar</button>
-                     </div>
-                   </div>
-
-                   <button 
-                     onClick={handleVerifyPayment}
-                     disabled={loading}
-                     className="w-full btn-secondary py-3 text-sm font-bold border-2 border-primary/20 hover:border-primary transition-all flex items-center justify-center gap-2"
-                   >
-                     {loading ? 'Verificando...' : 'Já paguei? Verificar Pagamento'}
-                   </button>
-                </div>
-              </div>
-            )}
-            
-            {order.payment_method === 'pix' && order.payment_status === 'approved' && (
-              <div className="card bg-[#E8F8EE] border-none p-6 text-center space-y-2">
-                <div className="w-12 h-12 bg-[#2ECC71] text-white rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Check size={24} />
-                </div>
-                <h3 className="text-lg font-black text-[#27AE60]">Pagamento Confirmado</h3>
-                <p className="text-sm text-[#27AE60]/80">Seu PIX foi aprovado com sucesso!</p>
-              </div>
-            )}
-
-            {order.payment_method === 'credit_card' && order.payment_status === 'pending' && order.payment_link && (
-              <div className="card bg-white border-2 border-primary p-8 text-center space-y-4">
-                <h3 className="text-xl font-black text-text-main">Pagar com Cartão</h3>
-                <p className="text-sm text-text-muted">Clique no botão abaixo para concluir o pagamento em nosso ambiente seguro.</p>
-                <div className="space-y-3">
-                  <a href={order.payment_link} className="btn-primary w-full py-4 flex items-center justify-center gap-2">
-                    Pagar Agora <ExternalLink size={18} />
-                  </a>
-                  <button 
-                    onClick={handleVerifyPayment}
-                    disabled={loading}
-                    className="w-full btn-secondary py-3 text-sm font-bold border-2 border-primary/20 hover:border-primary transition-all flex items-center justify-center gap-2"
-                  >
-                    {loading ? 'Verificando...' : 'Já paguei? Verificar Pagamento'}
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Estimated Arrival */}
             <div className="card bg-primary-soft border-none p-8 text-center space-y-4">
@@ -1893,7 +1668,6 @@ const SettingsView = ({
       address: form.address.value,
       logo_url,
       mercadopago_token: form.mercadopago_token.value,
-      mercadopago_public_key: form.mercadopago_public_key.value,
       pagseguro_token: form.pagseguro_token.value,
       google_tag_id: form.google_tag_id?.value || '',
       fb_pixel_id: form.fb_pixel_id?.value || '',
@@ -2000,10 +1774,6 @@ const SettingsView = ({
               <div className="space-y-1">
                 <label className="text-xs font-bold uppercase text-text-muted">Access Token</label>
                 <input name="mercadopago_token" defaultValue={restaurant?.mercadopago_token || ''} className="input bg-white" placeholder="APP_USR-..." type="password" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase text-text-muted">Public Key</label>
-                <input name="mercadopago_public_key" defaultValue={restaurant?.mercadopago_public_key || ''} className="input bg-white" placeholder="APP_USR-..." />
               </div>
             </div>
 
@@ -2749,7 +2519,6 @@ export default function App() {
   const [dailyOfferProduct, setDailyOfferProduct] = useState<Product | null>(null);
   const [showDailyOffer, setShowDailyOffer] = useState(false);
   const [cart, setCart] = useState<{ product: Product, quantity: number, selectedOptions?: ProductOption[] }[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -2758,32 +2527,6 @@ export default function App() {
   const [adminRestaurants, setAdminRestaurants] = useState<Restaurant[]>([]);
   const [adminStats, setAdminStats] = useState<any>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [selectedCourierHistory, setSelectedCourierHistory] = useState<Courier | null>(null);
-  const [courierOrders, setCourierOrders] = useState<Order[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
-  useEffect(() => {
-    if (selectedCourierHistory && token) {
-      const fetchHistory = async () => {
-        setLoadingHistory(true);
-        try {
-          const res = await fetch(`/api/restaurant/couriers/${selectedCourierHistory.id}/orders`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) {
-            setCourierOrders(await res.json());
-          }
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setLoadingHistory(false);
-        }
-      };
-      fetchHistory();
-    } else {
-      setCourierOrders([]);
-    }
-  }, [selectedCourierHistory, token]);
 
   const fetchAdminData = async () => {
     if (!token) return;
@@ -2804,7 +2547,7 @@ export default function App() {
         setIsInitialLoad(false);
 
         if (isPlatform) {
-          setView(prev => ['landing', 'login', 'register'].includes(prev) ? 'superadmin' : prev);
+          setView('superadmin');
           const [rRes, sRes, pRes] = await Promise.all([
             fetch('/api/admin/restaurants', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/admin/stats', { headers: { 'Authorization': `Bearer ${token}` } }),
@@ -2825,8 +2568,8 @@ export default function App() {
           setIsInitialLoad(false);
           return;
         } else {
-          // ensure view is admin only if coming from auth/landing
-          setView(prev => ['landing', 'login', 'register'].includes(prev) ? 'admin' : prev);
+          // ensure view is admin if not superadmin and we have token
+          setView('admin');
         }
       }
       setIsInitialLoad(false); // Ensure splash completion for non-superadmin or if meRes fails
@@ -2841,25 +2584,7 @@ export default function App() {
         fetch('/api/restaurant/promotions', { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
       if (pRes.ok) setProducts(await pRes.json());
-      if (oRes.ok) {
-        const newOrders = await oRes.json();
-        
-        // Detectar novos pagamentos aprovados para notificação
-        if (orders.length > 0) {
-          newOrders.forEach((newOrder: Order) => {
-            const oldOrder = orders.find(o => o.id === newOrder.id);
-            if (oldOrder && oldOrder.payment_status !== 'approved' && newOrder.payment_status === 'approved') {
-              setSuccess(`Pagamento aprovado para o Pedido #${newOrder.id}!`);
-              // Trigger a system sound if possible or a visual alert
-            }
-            if (!oldOrder) {
-              setSuccess(`Novo pedido recebido: #${newOrder.id}!`);
-            }
-          });
-        }
-        
-        setOrders(newOrders);
-      }
+      if (oRes.ok) setOrders(await oRes.json());
       if (sRes.ok) setSummary(await sRes.json());
       if (cRes.ok) setCouriers(await cRes.json());
       if (catRes.ok) setCategories(await catRes.json());
@@ -3546,10 +3271,6 @@ export default function App() {
     setSelectedProduct(null);
   };
 
-  const removeFromCart = (index: number) => {
-    setCart(prev => prev.filter((_, i) => i !== index));
-  };
-
   const submitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     const customer = {
@@ -3573,13 +3294,6 @@ export default function App() {
         }))
       })
     });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      setError(errorData.error || 'Erro ao processar pedido');
-      return;
-    }
-
     if (res.ok) {
       const data = await res.json();
       const trackRes = await fetch(`/api/public/orders/${data.orderId}`);
@@ -3588,14 +3302,7 @@ export default function App() {
       if(data.payment_qr_code_base64) {
           orderWithTracking.payment_qr_code_base64 = data.payment_qr_code_base64;
           orderWithTracking.payment_qr_code = data.payment_qr_code;
-      }
-      if(data.payment_link) {
-          orderWithTracking.payment_link = data.payment_link;
-          // Redirect to card payment if it's credit card
-          if (paymentMethod === 'credit_card') {
-            window.location.href = data.payment_link;
-            return;
-          }
+          orderWithTracking.payment_method = 'pix';
       }
 
       setTrackingOrder(orderWithTracking);
@@ -4111,12 +3818,7 @@ export default function App() {
                               {isBusy ? (
                                 <button className="flex-1 py-3 bg-blue-600 text-white text-[10px] font-black rounded-xl uppercase tracking-widest shadow-lg shadow-blue-200">Acompanhar</button>
                               ) : (
-                                <button 
-                                  onClick={() => setSelectedCourierHistory(c)}
-                                  className="flex-1 py-3 bg-gray-100 text-text-main text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-gray-200 transition-all active:scale-95"
-                                >
-                                  Histórico
-                                </button>
+                                <button className="flex-1 py-3 bg-gray-100 text-text-main text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-gray-200">Histórico</button>
                               )}
                               <button onClick={() => handleDeleteCourier(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors">
                                 <Trash2 size={18} />
@@ -4140,14 +3842,6 @@ export default function App() {
                   <AIView restaurant={restaurant} token={token} />
                 </FeatureGuard>
               )}
-
-              {/* Modal de Histórico do Entregador */}
-              <CourierHistoryModal 
-                courier={selectedCourierHistory}
-                orders={courierOrders}
-                isOpen={!!selectedCourierHistory}
-                onClose={() => setSelectedCourierHistory(null)}
-              />
             </motion.div>
           </AnimatePresence>
         </main>
@@ -4476,22 +4170,14 @@ export default function App() {
                 </div>
                 <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 no-scrollbar">
                   {cart.map((c, idx) => (
-                    <div key={idx} className="flex justify-between items-center gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
+                    <div key={idx} className="flex justify-between items-start gap-4 pb-4 border-b border-border last:border-0 last:pb-0">
                       <div className="flex-1">
                         <p className="font-black text-sm text-text-main"><span className="text-primary mr-2">{c.quantity}x</span>{c.product.name}</p>
                         {c.selectedOptions && c.selectedOptions.length > 0 && (
                           <p className="text-xs text-text-muted mt-1 font-medium">{c.selectedOptions.map(o => o.name).join(', ')}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="font-black text-sm text-text-main">{formatCurrency((c.product.price + (c.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0)) * c.quantity)}</span>
-                        <button 
-                          onClick={() => removeFromCart(idx)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                      <span className="font-black text-sm text-text-main">{formatCurrency((c.product.price + (c.selectedOptions?.reduce((sum, o) => sum + o.price, 0) || 0)) * c.quantity)}</span>
                     </div>
                   ))}
                 </div>
@@ -4503,38 +4189,11 @@ export default function App() {
                     
                     <div className="flex flex-col gap-2 mt-2">
                        <label className="text-sm font-bold text-text-main">Forma de Pagamento</label>
-                       <select 
-                         name="payment_method" 
-                         className="input cursor-pointer" 
-                         value={paymentMethod}
-                         onChange={(e) => setPaymentMethod(e.target.value)}
-                       >
-                          <option value="pix">💠 Pagar com PIX Online</option>
-                          <option value="credit_card">💳 Cartão de Crédito Online</option>
-                          <option value="cash">💵 Dinheiro (na entrega)</option>
-                          <option value="card_on_delivery">📠 Cartão na Entrega (Maquininha)</option>
+                       <select name="payment_method" className="input cursor-pointer" defaultValue="cash">
+                          <option value="cash">Pagar na Entrega (Dinheiro/Cartão)</option>
+                          <option value="pix">Pagar com PIX Online</option>
                        </select>
                     </div>
-
-                     {paymentMethod === 'credit_card' && (
-                       <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                         <CreditCard className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
-                         <div>
-                           <p className="text-sm font-bold text-blue-900">Check-out Pro do Mercado Pago</p>
-                           <p className="text-xs text-blue-800">Após clicar em enviar, você será redirecionado para o ambiente seguro do Mercado Pago para inserir os dados do seu cartão.</p>
-                         </div>
-                       </div>
-                     )}
-
-                     {paymentMethod === 'pix' && (
-                       <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                         <div className="text-emerald-600 flex-shrink-0 mt-0.5">💠</div>
-                         <div>
-                           <p className="text-sm font-bold text-emerald-900">Pagamento Instantâneo</p>
-                           <p className="text-xs text-emerald-800">O QR Code para pagamento será gerado imediatamente após o envio do pedido.</p>
-                         </div>
-                       </div>
-                     )}
 
                   </div>
                   <button type="submit" className="btn-primary w-full py-5 text-lg font-black rounded-2xl shadow-2xl">Enviar Pedido</button>

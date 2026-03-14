@@ -27,6 +27,7 @@ export interface Restaurant {
   slogan?: string;
   logo_url?: string;
   mercadopago_token?: string;
+  mercadopago_public_key?: string;
   pagseguro_token?: string;
   role?: 'restaurant' | 'superadmin';
   is_active?: boolean;
@@ -89,6 +90,12 @@ export interface Order {
   status: 'pending' | 'preparing' | 'ready' | 'delivering' | 'completed' | 'cancelled';
   courier_id?: number;
   courier_name?: string;
+  payment_method?: 'pix' | 'credit_card' | 'cash' | 'card_on_delivery';
+  payment_status?: string;
+  payment_id?: string;
+  payment_qr_code?: string;
+  payment_qr_code_base64?: string;
+  payment_link?: string;
   created_at: string;
   items?: OrderItem[];
 }
